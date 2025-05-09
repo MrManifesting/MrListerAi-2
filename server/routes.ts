@@ -1260,41 +1260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Employee QR Code Check-in Route
-  app.post("/api/employee/checkin", requireAuth, async (req, res) => {
-    try {
-      const { qrCode, location } = req.body;
-      const user = req.user as any;
-      
-      if (!qrCode) {
-        return res.status(400).json({ message: "QR code is required" });
-      }
-      
-      // Optional: Validate the QR code format
-      const qrParts = qrCode.split(':');
-      if (qrParts.length !== 2 || qrParts[0] !== 'EMPLOYEE_CHECKIN') {
-        return res.status(400).json({ message: "Invalid QR code format" });
-      }
-      
-      const locationId = qrParts[1];
-      
-      // Record the check-in
-      const checkin = await storage.createEmployeeCheckin({
-        userId: user.id,
-        locationId,
-        timestamp: new Date(),
-        location: location || "Unknown",
-      });
-      
-      res.status(201).json(checkin);
-    } catch (error) {
-      console.error("Error processing employee check-in:", error);
-      res.status(500).json({ 
-        message: "Error processing employee check-in",
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
+
 
   // TEST ROUTES for Database Integration
   
