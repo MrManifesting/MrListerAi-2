@@ -36,7 +36,7 @@ export default function PayPalButton({
       currency: currency,
       intent: intent,
     };
-    const response = await fetch("/order", {
+    const response = await fetch("/paypal/order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(orderPayload),
@@ -46,7 +46,7 @@ export default function PayPalButton({
   };
 
   const captureOrder = async (orderId: string) => {
-    const response = await fetch(`/order/${orderId}/capture`, {
+    const response = await fetch(`/paypal/order/${orderId}/capture`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -94,7 +94,7 @@ export default function PayPalButton({
   }, []);
   const initPayPal = async () => {
     try {
-      const clientToken: string = await fetch("/setup")
+      const clientToken: string = await fetch("/paypal/setup")
         .then((res) => res.json())
         .then((data) => {
           return data.clientToken;
@@ -139,6 +139,12 @@ export default function PayPalButton({
     }
   };
 
-  return <paypal-button id="paypal-button"></paypal-button>;
+  return (
+    <div className="flex items-center justify-center w-full">
+      <div className="border rounded-md p-2 bg-white hover:bg-gray-50 cursor-pointer w-full max-w-[300px] text-center">
+        <paypal-button id="paypal-button" className="w-full h-10"></paypal-button>
+      </div>
+    </div>
+  );
 }
 // <END_EXACT_CODE>

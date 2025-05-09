@@ -487,7 +487,16 @@ export default function Payments() {
 
             {/* PayPal Button */}
             <div className="mt-4">
-              <div className="flex items-center justify-center mb-2">
+              <div className="mb-2">
+                <div className="flex justify-between items-center p-3 border rounded-md bg-gray-50 mb-4">
+                  <div>
+                    <p className="font-medium">{selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan</p>
+                    <p className="text-sm text-gray-500">Monthly subscription</p>
+                  </div>
+                  <div className="font-bold">
+                    ${selectedPlan === "basic" ? "9.99" : selectedPlan === "premium" ? "29.99" : "49.99"}
+                  </div>
+                </div>
                 <PayPalButton 
                   amount={selectedPlan === "basic" ? "9.99" : selectedPlan === "premium" ? "29.99" : "49.99"} 
                   currency="USD" 
