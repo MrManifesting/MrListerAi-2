@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthProvider } from "@/hooks/use-auth";
+import { WebSocketProvider } from "@/components/providers/websocket-provider";
 
 // Pages
 import Dashboard from "@/pages/dashboard";
@@ -38,8 +39,10 @@ function App() {
   return (
     <TooltipProvider>
       <AuthProvider>
-        <Router />
-        <Toaster />
+        <WebSocketProvider>
+          <Router />
+          <Toaster />
+        </WebSocketProvider>
       </AuthProvider>
     </TooltipProvider>
   );

@@ -4,6 +4,7 @@ import { useImageAnalysis } from "@/hooks/use-image-analysis";
 import { ImageUpload } from "@/components/inventory/image-upload";
 import { AnalysisList } from "@/components/inventory/analysis-list";
 import { InventoryTable } from "@/components/inventory/inventory-table";
+import { InventoryStatus } from "@/components/inventory/inventory-status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
