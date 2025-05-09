@@ -2,12 +2,70 @@ import { analyzeProductImage, generateProductDescription, analyzePricingStrategy
 import { storage } from './storage';
 import { InsertImageAnalysis, InsertInventoryItem } from '@shared/schema';
 import * as crypto from 'crypto';
+import * as QRCode from 'qrcode';
 
-// Helper to generate a SKU based on category and random string
-function generateSku(category: string): string {
-  const categoryPrefix = category.split('>')[0].trim().substring(0, 3).toUpperCase();
-  const randomDigits = Math.floor(10000 + Math.random() * 90000);
-  return `${categoryPrefix}-${randomDigits}`;
+// Helper to generate a SKU based on various product attributes
+function generateSku(itemData: {
+  category: string,
+  brand?: string,
+  condition?: string,
+  detectedBarcode?: string | null
+}): string {
+  // If a barcode exists, use part of it in the SKU
+  if (itemData.detectedBarcode) {
+    const truncatedBarcode = itemData.detectedBarcode.slice(-5);
+    const categoryPrefix = itemData.category.split('>')[0].trim().substring(0, 3).toUpperCase();
+    return `${categoryPrefix}-${truncatedBarcode}`;
+  }
+  
+  // Otherwise create a more descriptive SKU based on category, brand, and condition
+  const categoryPrefix = itemData.category.split('>')[0].trim().substring(0, 3).toUpperCase();
+  const brandCode = itemData.brand ? itemData.brand.substring(0, 2).toUpperCase() : 'XX';
+  const conditionCode = itemData.condition ? itemData.condition.charAt(0).toUpperCase() : 'G';
+  const timestamp = Date.now().toString().slice(-5);
+  
+  return `${categoryPrefix}-${brandCode}${conditionCode}-${timestamp}`;
+}
+
+// Generate a barcode if none is detected
+async function generateBarcode(sku: string): Promise<string> {
+  // Simple UPC/EAN compatible code generation based on SKU
+  // In a real app, you'd want to use proper barcode allocation
+  const skuDigits = sku.replace(/[^0-9]/g, '');
+  const paddedDigits = skuDigits.padEnd(11, '0').substring(0, 11);
+  
+  // Calculate check digit (simple implementation)
+  const digits = paddedDigits.split('').map(d => parseInt(d));
+  const oddSum = digits.filter((_, i) => i % 2 === 0).reduce((sum, d) => sum + d, 0);
+  const evenSum = digits.filter((_, i) => i % 2 === 1).reduce((sum, d) => sum + d * 3, 0);
+  const totalSum = oddSum + evenSum;
+  const checkDigit = (10 - (totalSum % 10)) % 10;
+  
+  return `${paddedDigits}${checkDigit}`;
+}
+
+// Generate QR code data URL from inventory details
+async function generateQrCode(data: {
+  sku: string,
+  title: string,
+  id?: number
+}): Promise<string> {
+  const qrData = JSON.stringify({
+    sku: data.sku,
+    title: data.title,
+    id: data.id || 0
+  });
+  
+  try {
+    return await QRCode.toDataURL(qrData, {
+      errorCorrectionLevel: 'H',
+      margin: 1,
+      width: 200
+    });
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    return '';
+  }
 }
 
 // Process and analyze an uploaded product image
@@ -67,17 +125,45 @@ export async function addAnalyzedItemToInventory(
       throw new Error('Analysis not found');
     }
     
-    // Generate enhanced description
+    // Parse the AI data from the analysis
+    const aiResultData = analysis.aiData || {};
+    
+    // Get enhanced data from AI analysis or use defaults
+    const brand = aiResultData.brand || "Unknown";
+    const detectedBarcode = aiResultData.detectedBarcode || null;
+    const barcodeType = aiResultData.barcodeType || null;
+    const features = aiResultData.features || [];
+    const keywords = aiResultData.keywords || [];
+    const materials = aiResultData.materials || [];
+    const dimensions = aiResultData.dimensions || null;
+    const weight = aiResultData.weight || null;
+    
+    // Generate enhanced description with features if available
     const enhancedDescription = await generateProductDescription({
       title: analysis.suggestedTitle,
       category: analysis.suggestedCategory,
-      condition: analysis.suggestedCondition
+      condition: analysis.suggestedCondition,
+      features: features
     });
     
-    // Generate SKU
-    const sku = customData.sku || generateSku(analysis.suggestedCategory);
+    // Generate SKU based on enhanced data
+    const sku = customData.sku || generateSku({
+      category: analysis.suggestedCategory,
+      brand: brand,
+      condition: analysis.suggestedCondition,
+      detectedBarcode: detectedBarcode
+    });
     
-    // Create inventory item
+    // Generate or use detected barcode
+    const barcode = detectedBarcode || await generateBarcode(sku);
+    
+    // Generate QR code
+    const qrCodeData = await generateQrCode({
+      sku: sku,
+      title: customData.title || analysis.suggestedTitle
+    });
+    
+    // Create inventory item with enhanced data
     const inventoryItem: InsertInventoryItem = {
       userId,
       storeId: customData.storeId,
@@ -97,9 +183,21 @@ export async function addAnalyzedItemToInventory(
       aiData: {
         analysisId: analysis.id,
         marketPriceRange: analysis.marketPriceRange,
-        confidence: 0.85 // Mock confidence score
+        brand,
+        features,
+        keywords,
+        materials,
+        dimensions,
+        weight,
+        confidence: 0.85
       },
-      marketplaceData: customData.marketplaceData
+      marketplaceData: customData.marketplaceData || {},
+      // Add barcode and QR code to the item metadata
+      metadata: {
+        barcode,
+        barcodeType: barcodeType || 'EAN-13',
+        qrCode: qrCodeData
+      }
     };
     
     // Add to inventory

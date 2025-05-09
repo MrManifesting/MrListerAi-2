@@ -36,6 +36,7 @@ export const inventoryItems = pgTable("inventory_items", {
   aiGenerated: boolean("ai_generated").default(false),
   aiData: jsonb("ai_data"),
   marketplaceData: jsonb("marketplace_data"),
+  metadata: jsonb("metadata"), // For barcodes, QR codes, and other item metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
