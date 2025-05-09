@@ -116,9 +116,9 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
                         className="h-16 w-16 rounded-md object-cover border-2 border-border hover:border-primary transition-all duration-200 shadow-sm hover:shadow-md"
                       />
                     ) : (
-                      item.imageUrl ? (
+                      item.imageUrls && item.imageUrls.length > 0 ? (
                         <img
-                          src={item.imageUrl}
+                          src={item.imageUrls[0]}
                           alt={item.title}
                           className="h-16 w-16 rounded-md object-cover border-2 border-border hover:border-primary transition-all duration-200 shadow-sm hover:shadow-md"
                         />
@@ -202,15 +202,15 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <div className="overflow-hidden rounded-lg border-2 border-border shadow-md">
-                  {selectedItem.imageUrl ? (
+                  {selectedItem.thumbnailUrl ? (
                     <img
-                      src={selectedItem.imageUrl}
+                      src={selectedItem.thumbnailUrl}
                       alt={selectedItem.title}
                       className="w-full h-auto object-cover aspect-square"
                     />
-                  ) : selectedItem.thumbnailUrl ? (
+                  ) : selectedItem.imageUrls && selectedItem.imageUrls.length > 0 ? (
                     <img
-                      src={selectedItem.thumbnailUrl}
+                      src={selectedItem.imageUrls[0]}
                       alt={selectedItem.title}
                       className="w-full h-auto object-cover aspect-square"
                     />
@@ -223,9 +223,9 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <div className="p-2 border rounded-md text-center">
                     <p className="text-xs text-muted-foreground mb-1">Barcode</p>
-                    {selectedItem.barcode ? (
+                    {selectedItem.metadata?.barcode ? (
                       <img
-                        src={selectedItem.barcode}
+                        src={selectedItem.metadata.barcode}
                         alt="Barcode"
                         className="h-16 w-full object-contain"
                       />
@@ -235,9 +235,9 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
                   </div>
                   <div className="p-2 border rounded-md text-center">
                     <p className="text-xs text-muted-foreground mb-1">QR Code</p>
-                    {selectedItem.qrCode ? (
+                    {selectedItem.metadata?.qrCode ? (
                       <img
-                        src={selectedItem.qrCode}
+                        src={selectedItem.metadata.qrCode}
                         alt="QR Code"
                         className="h-16 w-full object-contain"
                       />
