@@ -129,8 +129,7 @@ export class DatabaseStorage implements IStorage {
       email: "demo@example.com",
       fullName: "John Smith",
       role: "seller",
-      subscription: "premium",
-      subscriptionValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+      subscription: "premium"
     };
     
     // First check if user exists
@@ -330,7 +329,7 @@ export class DatabaseStorage implements IStorage {
           ...userData,
           role: userData.role || "seller",
           subscription: userData.subscription || "basic",
-          subscriptionValidUntil
+          subscriptionValidUntil: subscriptionValidUntil
         })
         .returning();
       return user;
