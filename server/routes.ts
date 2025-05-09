@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import * as path from "path";
 import { storage } from "./storage";
 import {
   processProductImage,
@@ -15,6 +16,20 @@ import {
   syncAllMarketplaces,
   generateMarketplaceCSV
 } from "./marketplace-api";
+import {
+  generateBarcodeLabels,
+  generatePackingSlip,
+  generateQrCodeLabels,
+  generateInventoryReport
+} from "./pdf-generator";
+import {
+  removeBackground,
+  resizeImage,
+  optimizeImage,
+  extractDominantColors,
+  generateThumbnail,
+  getImageMetadata
+} from "./image-processor";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { insertUserSchema, insertInventoryItemSchema } from "@shared/schema";
 import session from "express-session";
@@ -684,6 +699,260 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: "Error fetching dashboard data" });
+    }
+  });
+
+  // IMAGE PROCESSING ROUTES
+  app.post("/api/images/remove-background", requireAuth, async (req, res) => {
+    try {
+      const { imageBase64, filename } = req.body;
+      
+      if (!imageBase64 || !filename) {
+        return res.status(400).json({ message: "Image data and filename are required" });
+      }
+      
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(imageBase64.split(',')[1], 'base64');
+      
+      // Process the image
+      const result = await removeBackground(imageBuffer, filename);
+      
+      // Convert processed image back to base64
+      const processedBase64 = `data:image/png;base64,${result.buffer.toString('base64')}`;
+      
+      // Return processed image
+      res.json({
+        processedImage: processedBase64,
+        path: result.path
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error removing background", error: error.message });
+    }
+  });
+  
+  app.post("/api/images/resize", requireAuth, async (req, res) => {
+    try {
+      const { imageBase64, width, height, filename } = req.body;
+      
+      if (!imageBase64 || !width || !height || !filename) {
+        return res.status(400).json({ message: "Image data, dimensions, and filename are required" });
+      }
+      
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(imageBase64.split(',')[1], 'base64');
+      
+      // Process the image
+      const result = await resizeImage(imageBuffer, width, height, filename);
+      
+      // Determine image format from filename extension
+      const ext = path.extname(filename).toLowerCase();
+      const format = ext === '.png' ? 'png' : 'jpeg';
+      
+      // Convert processed image back to base64
+      const processedBase64 = `data:image/${format};base64,${result.buffer.toString('base64')}`;
+      
+      // Return processed image
+      res.json({
+        processedImage: processedBase64,
+        path: result.path
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error resizing image", error: error.message });
+    }
+  });
+  
+  app.post("/api/images/optimize", requireAuth, async (req, res) => {
+    try {
+      const { imageBase64, filename, quality } = req.body;
+      
+      if (!imageBase64 || !filename) {
+        return res.status(400).json({ message: "Image data and filename are required" });
+      }
+      
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(imageBase64.split(',')[1], 'base64');
+      
+      // Process the image
+      const result = await optimizeImage(imageBuffer, filename, quality || 80);
+      
+      // Determine image format from filename extension
+      const ext = path.extname(filename).toLowerCase();
+      const format = ext === '.png' ? 'png' : (ext === '.jpg' || ext === '.jpeg' ? 'jpeg' : 'webp');
+      
+      // Convert processed image back to base64
+      const processedBase64 = `data:image/${format};base64,${result.buffer.toString('base64')}`;
+      
+      // Return processed image
+      res.json({
+        processedImage: processedBase64,
+        path: result.path,
+        originalSize: imageBuffer.length,
+        optimizedSize: result.buffer.length,
+        reduction: ((imageBuffer.length - result.buffer.length) / imageBuffer.length * 100).toFixed(1) + '%'
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error optimizing image", error: error.message });
+    }
+  });
+  
+  app.post("/api/images/extract-colors", requireAuth, async (req, res) => {
+    try {
+      const { imageBase64, count } = req.body;
+      
+      if (!imageBase64) {
+        return res.status(400).json({ message: "Image data is required" });
+      }
+      
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(imageBase64.split(',')[1], 'base64');
+      
+      // Extract dominant colors
+      const colors = await extractDominantColors(imageBuffer, count || 5);
+      
+      // Return color data
+      res.json({ colors });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error extracting colors", error: error.message });
+    }
+  });
+  
+  app.post("/api/images/metadata", requireAuth, async (req, res) => {
+    try {
+      const { imageBase64 } = req.body;
+      
+      if (!imageBase64) {
+        return res.status(400).json({ message: "Image data is required" });
+      }
+      
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(imageBase64.split(',')[1], 'base64');
+      
+      // Get image metadata
+      const metadata = await getImageMetadata(imageBuffer);
+      
+      // Return metadata
+      res.json({ metadata });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error getting image metadata", error: error.message });
+    }
+  });
+  
+  app.post("/api/images/generate-thumbnail", requireAuth, async (req, res) => {
+    try {
+      const { imageBase64, filename } = req.body;
+      
+      if (!imageBase64 || !filename) {
+        return res.status(400).json({ message: "Image data and filename are required" });
+      }
+      
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(imageBase64.split(',')[1], 'base64');
+      
+      // Generate thumbnail
+      const result = await generateThumbnail(imageBuffer, filename);
+      
+      // Convert processed image back to base64
+      const processedBase64 = `data:image/jpeg;base64,${result.buffer.toString('base64')}`;
+      
+      // Return processed image
+      res.json({
+        thumbnail: processedBase64,
+        path: result.path
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error generating thumbnail", error: error.message });
+    }
+  });
+
+  // PDF GENERATION ROUTES
+  app.post("/api/print/barcodes", requireAuth, async (req, res) => {
+    try {
+      const { itemIds } = req.body;
+      
+      if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
+        return res.status(400).json({ message: "Item IDs are required" });
+      }
+      
+      // Generate PDF
+      const pdfBuffer = await generateBarcodeLabels(itemIds);
+      
+      // Send PDF as response
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "attachment; filename=barcodes.pdf");
+      res.send(pdfBuffer);
+    } catch (error) {
+      res.status(500).json({ message: "Error generating barcode labels", error: error.message });
+    }
+  });
+  
+  app.post("/api/print/qrcodes", requireAuth, async (req, res) => {
+    try {
+      const { itemIds } = req.body;
+      
+      if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
+        return res.status(400).json({ message: "Item IDs are required" });
+      }
+      
+      // Generate PDF
+      const pdfBuffer = await generateQrCodeLabels(itemIds);
+      
+      // Send PDF as response
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "attachment; filename=qrcodes.pdf");
+      res.send(pdfBuffer);
+    } catch (error) {
+      res.status(500).json({ message: "Error generating QR code labels", error: error.message });
+    }
+  });
+  
+  app.post("/api/print/packing-slip/:itemId", requireAuth, async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.itemId);
+      const orderInfo = req.body;
+      
+      if (!orderInfo) {
+        return res.status(400).json({ message: "Order info is required" });
+      }
+      
+      // Check if required fields are present
+      const requiredFields = ["orderNumber", "orderDate", "customerName", "shippingAddress", "paymentMethod"];
+      const missingFields = requiredFields.filter(field => !orderInfo[field]);
+      
+      if (missingFields.length > 0) {
+        return res.status(400).json({ 
+          message: "Missing required fields", 
+          missingFields 
+        });
+      }
+      
+      // Generate PDF
+      const pdfBuffer = await generatePackingSlip(itemId, {
+        ...orderInfo,
+        orderDate: new Date(orderInfo.orderDate)
+      });
+      
+      // Send PDF as response
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "attachment; filename=packing-slip.pdf");
+      res.send(pdfBuffer);
+    } catch (error) {
+      res.status(500).json({ message: "Error generating packing slip", error: error.message });
+    }
+  });
+  
+  app.get("/api/print/inventory-report", requireAuth, async (req, res) => {
+    try {
+      const storeId = req.query.storeId ? parseInt(req.query.storeId as string) : undefined;
+      
+      // Generate PDF
+      const pdfBuffer = await generateInventoryReport(storeId);
+      
+      // Send PDF as response
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "attachment; filename=inventory-report.pdf");
+      res.send(pdfBuffer);
+    } catch (error) {
+      res.status(500).json({ message: "Error generating inventory report", error: error.message });
     }
   });
 

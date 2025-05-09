@@ -1,11 +1,18 @@
-import * as pdfMake from 'pdfmake/build/pdfmake';
-import * as pdfFonts from 'pdfmake/build/vfs_fonts';
+import * as pdfMakeType from 'pdfmake/build/pdfmake';
+import * as pdfFontsType from 'pdfmake/build/vfs_fonts';
 import { TDocumentDefinitions, TDocumentStyles } from 'pdfmake/interfaces';
 import { InventoryItem } from '@shared/schema';
 import { storage } from './storage';
 
-// Initialize PDF generator
-(pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
+// Need to handle the imports differently due to the way pdfmake is built
+// This allows us to use pdfmake in both browser and Node.js environments
+const pdfMake = pdfMakeType as any;
+const pdfFonts = pdfFontsType as any;
+
+// Initialize PDF generator - handle potential undefined vfs gracefully
+if (pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
+  pdfMake.vfs = pdfFonts.pdfMake.vfs;
+}
 
 // Define common styles
 const defaultStyles: TDocumentStyles = {
