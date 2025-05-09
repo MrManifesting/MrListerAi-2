@@ -13,6 +13,7 @@ run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
 
 [env]
 REPLIT_DISABLE_PACKAGE_LAYER = "1"
+NODE_ENV = "production"
 
 [[ports]]
 localPort = 5000

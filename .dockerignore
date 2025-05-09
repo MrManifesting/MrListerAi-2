@@ -8,3 +8,12 @@ temp
 migrations
 attached_assets
 scripts
+.DS_Store
+**/.DS_Store
+npm-debug.log
+.gitignore
+.env.local
+.env.development
+README.md
+tests
+docs

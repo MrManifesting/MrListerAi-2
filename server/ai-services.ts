@@ -115,9 +115,10 @@ export async function processProductImage(
     // Write the thumbnail
     await fs.writeFile(thumbnailPath, thumbnailBuffer);
     
-    // Create URLs for the images
-    const originalImageUrl = `/temp/${filename}`;
-    const processedImageUrl = `/temp/thumb-${filename}`;
+    // Create URLs for the images with environment awareness
+    const tempPrefix = process.env.NODE_ENV === 'production' ? '/tmp/app-temp' : 'temp';
+    const originalImageUrl = `/${tempPrefix}/${filename}`;
+    const processedImageUrl = `/${tempPrefix}/thumb-${filename}`;
     
     // Store the enhanced analysis results with better data validation and type handling
     const analysisData: InsertImageAnalysis = {
