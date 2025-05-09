@@ -43,8 +43,10 @@ export default function Login() {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (data: z.infer<typeof loginSchema>) => {
-      const response = await apiRequest("POST", "/api/auth/login", data);
-      return response.json();
+      return await apiRequest("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify(data)
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });

@@ -145,10 +145,18 @@ export class MemStorage implements IStorage {
       email: "demo@example.com",
       fullName: "John Smith",
       role: "seller",
-      subscription: "premium"
+      subscription: "premium",
+      subscriptionValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
     };
     
-    this.createUser(demoUser).then(user => {
+    // First check if user exists
+    this.getUserByUsername("demo").then(existingUser => {
+      if (existingUser) {
+        return existingUser;
+      } else {
+        return this.createUser(demoUser);
+      }
+    }).then(user => {
       // Add demo marketplaces
       this.createMarketplace({
         userId: user.id,
