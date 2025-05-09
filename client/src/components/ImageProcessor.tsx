@@ -167,7 +167,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({
     setIsProcessing(true);
     
     try {
-      const result = await apiRequest('/api/images/metadata', {
+      const result = await apiRequest<{metadata: any}>('/api/images/metadata', {
         method: 'POST',
         body: JSON.stringify({
           imageBase64: originalImage
@@ -199,7 +199,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({
     setIsProcessing(true);
     
     try {
-      const result = await apiRequest('/api/images/extract-colors', {
+      const result = await apiRequest<{colors: string[]}>('/api/images/extract-colors', {
         method: 'POST',
         body: JSON.stringify({
           imageBase64: originalImage,
@@ -232,7 +232,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({
     setIsProcessing(true);
     
     try {
-      const result = await apiRequest('/api/images/generate-thumbnail', {
+      const result = await apiRequest<{thumbnail: string, path: string}>('/api/images/generate-thumbnail', {
         method: 'POST',
         body: JSON.stringify({
           imageBase64: originalImage,
@@ -275,7 +275,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({
     setIsProcessing(true);
     
     try {
-      const result = await apiRequest('/api/images/resize', {
+      const result = await apiRequest<{processedImage: string, path: string}>('/api/images/resize', {
         method: 'POST',
         body: JSON.stringify({
           imageBase64: originalImage,
