@@ -1,5 +1,6 @@
 import { Marketplace, InventoryItem } from "@shared/schema";
-import fs from "fs";
+import fs from "fs/promises";
+import { existsSync, mkdirSync } from "fs";
 import path from "path";
 import { storage } from "./storage";
 
@@ -370,14 +371,14 @@ export async function saveCSVFile(
   const tempDir = path.join(process.cwd(), 'temp');
   
   // Ensure temp directory exists
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
+  if (!existsSync(tempDir)) {
+    mkdirSync(tempDir, { recursive: true });
   }
   
   const filePath = path.join(tempDir, fileName);
   
   // Write file
-  await fs.promises.writeFile(filePath, content, 'utf8');
+  await fs.writeFile(filePath, content, 'utf8');
   
   return filePath;
 }
@@ -470,9 +471,14 @@ function extractBulletPoints(description?: string): string[] {
   
   // Look for bullet points (lines starting with - or •)
   const bulletPointRegex = /^[-•](.+)$/gm;
-  const matches = [...description.matchAll(bulletPointRegex)];
+  const bulletPoints: string[] = [];
+  let match;
   
-  return matches.map(match => match[1].trim()).slice(0, 5);
+  while ((match = bulletPointRegex.exec(description)) !== null) {
+    bulletPoints.push(match[1].trim());
+  }
+  
+  return bulletPoints.slice(0, 5);
 }
 
 /**
