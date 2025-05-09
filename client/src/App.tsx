@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
 import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "./lib/queryClient";
 
 // Pages
 import Dashboard from "@/pages/dashboard";
@@ -52,7 +53,7 @@ function App() {
     queryKey: ["/api/auth/user"],
     retry: false,
     refetchOnWindowFocus: false,
-    // The default query function will handle 401s by returning null
+    queryFn: getQueryFn({ on401: "returnNull" })
   });
 
   if (isLoading) {
