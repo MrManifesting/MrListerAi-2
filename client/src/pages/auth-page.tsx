@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -20,11 +20,12 @@ export default function AuthPage() {
 
   const [, navigate] = useLocation();
   
-  // Redirect to home if already logged in
-  if (user) {
-    navigate("/");
-    return null;
-  }
+  // Use useEffect to redirect after render is complete
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   return (
     <div className="flex min-h-screen">
