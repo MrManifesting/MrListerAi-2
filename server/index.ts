@@ -8,8 +8,13 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-// Serve static files from the temp directory
-app.use('/temp', express.static(path.join(process.cwd(), 'temp')));
+// Create temp directory if it doesn't exist and serve static files
+import fs from "fs";
+const tempDir = path.join(process.cwd(), 'temp');
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true });
+}
+app.use('/temp', express.static(tempDir));
 
 app.use((req, res, next) => {
   const start = Date.now();

@@ -11,6 +11,9 @@ deploymentTarget = "autoscale"
 build = ["sh", "-c", "npm run build"]
 run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
 
+[env]
+REPLIT_DISABLE_PACKAGE_LAYER = "1"
+
 [[ports]]
 localPort = 5000
 externalPort = 80
