@@ -213,6 +213,12 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
                       src={selectedItem.thumbnailUrl}
                       alt={selectedItem.title}
                       className="w-full h-auto object-cover aspect-square"
+                      onError={(e) => {
+                        // If thumbnail fails, try the full image
+                        if (selectedItem.imageUrls && selectedItem.imageUrls.length > 0) {
+                          e.currentTarget.src = selectedItem.imageUrls[0];
+                        }
+                      }}
                     />
                   ) : selectedItem.imageUrls && selectedItem.imageUrls.length > 0 ? (
                     <img
@@ -234,6 +240,9 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
                         src={selectedItem.metadata.barcode}
                         alt="Barcode"
                         className="h-16 w-full object-contain"
+                        onError={() => {
+                          console.log("Failed to load barcode image");
+                        }}
                       />
                     ) : (
                       <p className="text-xs text-muted-foreground">No barcode</p>
@@ -246,6 +255,9 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
                         src={selectedItem.metadata.qrCode}
                         alt="QR Code"
                         className="h-16 w-full object-contain"
+                        onError={() => {
+                          console.log("Failed to load QR code image");
+                        }}
                       />
                     ) : (
                       <p className="text-xs text-muted-foreground">No QR code</p>

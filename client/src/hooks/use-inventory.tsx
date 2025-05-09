@@ -28,7 +28,21 @@ export interface InventoryItem {
   updatedAt: Date;
 }
 
-export function useInventory() {
+// Define a return type for the hook to help TypeScript
+interface UseInventoryReturn {
+  inventoryItems: InventoryItem[] | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => Promise<any>;
+  addItem: (newItem: Partial<InventoryItem>) => void;
+  updateItem: (item: Partial<InventoryItem> & { id: number }) => void;
+  deleteItem: (id: number) => void;
+  isAddingItem: boolean;
+  isUpdatingItem: boolean;
+  isDeletingItem: boolean;
+}
+
+export function useInventory(): UseInventoryReturn {
   const { toast } = useToast();
   const { lastInventoryUpdate } = useWebSocketContext();
   
