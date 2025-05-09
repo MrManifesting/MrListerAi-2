@@ -1,81 +1,99 @@
+
 // Ultra-simple server for deployment
 // This script has minimal dependencies and should work with any Node version
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const url = require('url');
+
+// Set up server port
+const PORT = process.env.PORT || 5000;
+
+// MIME types for serving static files
+const MIME_TYPES = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.eot': 'application/vnd.ms-fontobject',
+  '.otf': 'font/otf'
+};
+
+// Client files directory
+const PUBLIC_DIR = path.join(__dirname, 'dist', 'public');
+const API_ENDPOINTS = ['/api', '/auth', '/ws'];
 
 // Create a basic HTTP server
 const server = http.createServer((req, res) => {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+  // Parse the URL
+  const parsedUrl = url.parse(req.url);
+  let pathname = parsedUrl.pathname;
   
-  // Handle OPTIONS method
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200);
-    res.end();
-    return;
-  }
+  // Check if this is an API request
+  const isApiRequest = API_ENDPOINTS.some(endpoint => pathname.startsWith(endpoint));
   
-  // Basic routing
-  if (req.url === '/' || req.url === '/api/health') {
+  // If it's an API request, return a simple response for now
+  if (isApiRequest) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      status: 'ok',
-      message: 'MrLister API is running',
-      timestamp: new Date().toISOString()
+    return res.end(JSON.stringify({ 
+      message: 'API service is running. Full API implementation requires the main server.' 
     }));
-    return;
   }
   
-  // Not found
-  res.writeHead(404, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({
-    status: 'error',
-    message: 'Not Found'
-  }));
-});
-
-// Create WebSocket (ws) server on the same HTTP server
-try {
-  // Try to load ws module
-  const WebSocket = require('ws');
-  const wss = new WebSocket.Server({ server, path: '/ws' });
-
-  wss.on('connection', (ws) => {
-    console.log('WebSocket client connected');
-    
-    ws.send(JSON.stringify({
-      type: 'connection',
-      message: 'Connected to MrLister WebSocket server'
-    }));
-    
-    ws.on('message', (message) => {
-      console.log('Received message:', message.toString());
+  // If the request is for the root, serve index.html
+  if (pathname === '/') {
+    pathname = '/index.html';
+  }
+  
+  // Otherwise serve static files from the public directory
+  const filePath = path.join(PUBLIC_DIR, pathname);
+  
+  // Get the file extension
+  const ext = path.extname(filePath);
+  
+  // Check if the file exists
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      // If the file doesn't exist, try to serve index.html (for client-side routing)
+      const indexPath = path.join(PUBLIC_DIR, 'index.html');
       
-      // Broadcast to all connected clients
-      wss.clients.forEach((client) => {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(message.toString());
+      fs.readFile(indexPath, (err, data) => {
+        if (err) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          return res.end('Not Found');
         }
+        
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        return res.end(data);
       });
-    });
+      return;
+    }
     
-    ws.on('close', () => {
-      console.log('WebSocket client disconnected');
+    // Read the file and serve it
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        return res.end('Internal Server Error');
+      }
+      
+      // Set the correct content type
+      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': contentType });
+      return res.end(data);
     });
   });
-  
-  console.log('WebSocket server initialized');
-} catch (error) {
-  console.error('WebSocket server initialization failed:', error.message);
-}
+});
 
-// Start server
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`MrLister server running on port ${PORT}`);
-  console.log(`Server started at: ${new Date().toISOString()}`);
+// Start the server
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Static server running at http://0.0.0.0:${PORT}/`);
 });

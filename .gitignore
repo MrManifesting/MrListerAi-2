@@ -1,11 +1,70 @@
 
-node_modules
-dist
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
-temp
-temp/**/*
+# Logs
+logs
 *.log
-*.tmp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+.nyc_output
+
+# Build
+dist
+dist-ssr
+build
+out
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Temp directories
+temp
+.temp
+cache
+.cache
+client/dist
+
+# Debug files
+*.tsbuildinfo
+.vercel
+.output
+
+# Large files
+*.gz
+*.zip
+*.rar
+*.7z
+*.tar
+*.tgz
+*.mp4
+*.mov
+*.avi
+*.webm
+*.pdf
+*.psd
+*.ai
+*.sketch
