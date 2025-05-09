@@ -1,3 +1,8 @@
+import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import { db, pool } from "./db";
+import type { Request } from "express";
+import connectPgSimple from "connect-pg-simple";
+import session from "express-session";
 import {
   User,
   InsertUser,
@@ -17,6 +22,8 @@ import {
   InsertSubscription,
   Analytics,
   InsertAnalytics,
+  EmployeeCheckin,
+  InsertEmployeeCheckin,
   // Import the table definitions as well
   users,
   inventoryItems,
@@ -26,27 +33,9 @@ import {
   donations,
   imageAnalysis,
   subscriptions,
-  analytics
+  analytics,
+  employeeCheckins
 } from "@shared/schema";
-
-// Storage interface with all CRUD methods needed for the application
-// Employee Checkin interface
-export interface EmployeeCheckin {
-  id: number;
-  userId: number;
-  locationId: string;
-  timestamp: Date;
-  location: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface InsertEmployeeCheckin {
-  userId: number;
-  locationId: string;
-  timestamp: Date;
-  location: string;
-}
 
 export interface IStorage {
   // User Management
@@ -122,12 +111,6 @@ export interface IStorage {
   createAnalytics(analytics: InsertAnalytics): Promise<Analytics>;
   updateAnalytics(id: number, analyticsData: Partial<Analytics>): Promise<Analytics | undefined>;
 }
-
-import { eq, and, desc, sql } from "drizzle-orm";
-import { db } from "./db";
-import connectPgSimple from "connect-pg-simple";
-import session from "express-session";
-import { pool } from "./db";
 
 // Database Storage Implementation
 export class DatabaseStorage implements IStorage {
@@ -593,137 +576,239 @@ export class DatabaseStorage implements IStorage {
 
   // Store Methods
   async getStore(id: number): Promise<Store | undefined> {
-    return this.stores.get(id);
+    try {
+      const [store] = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.id, id));
+      return store;
+    } catch (error) {
+      console.error("Error getting store:", error);
+      return undefined;
+    }
   }
 
   async getStoresByOwner(ownerId: number): Promise<Store[]> {
-    return Array.from(this.stores.values()).filter(
-      (store) => store.ownerId === ownerId
-    );
+    try {
+      return await db
+        .select()
+        .from(stores)
+        .where(eq(stores.ownerId, ownerId));
+    } catch (error) {
+      console.error("Error getting stores by owner:", error);
+      return [];
+    }
   }
 
   async getStoresByManager(managerId: number): Promise<Store[]> {
-    return Array.from(this.stores.values()).filter(
-      (store) => store.managerId === managerId
-    );
+    try {
+      return await db
+        .select()
+        .from(stores)
+        .where(eq(stores.managerId, managerId));
+    } catch (error) {
+      console.error("Error getting stores by manager:", error);
+      return [];
+    }
   }
 
   async createStore(storeData: InsertStore): Promise<Store> {
-    const id = this.storeId++;
-    const now = new Date();
-    const store: Store = {
-      ...storeData,
-      id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.stores.set(id, store);
-    return store;
+    try {
+      const [store] = await db
+        .insert(stores)
+        .values(storeData)
+        .returning();
+      return store;
+    } catch (error) {
+      console.error("Error creating store:", error);
+      throw new Error("Failed to create store");
+    }
   }
 
   async updateStore(id: number, storeData: Partial<Store>): Promise<Store | undefined> {
-    const store = this.stores.get(id);
-    if (!store) return undefined;
-    
-    const updatedStore = {
-      ...store,
-      ...storeData,
-      updatedAt: new Date(),
-    };
-    this.stores.set(id, updatedStore);
-    return updatedStore;
+    try {
+      const [updatedStore] = await db
+        .update(stores)
+        .set({
+          ...storeData,
+          updatedAt: new Date()
+        })
+        .where(eq(stores.id, id))
+        .returning();
+      return updatedStore;
+    } catch (error) {
+      console.error("Error updating store:", error);
+      return undefined;
+    }
   }
 
   async deleteStore(id: number): Promise<boolean> {
-    return this.stores.delete(id);
+    try {
+      const result = await db
+        .delete(stores)
+        .where(eq(stores.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting store:", error);
+      return false;
+    }
   }
 
   // Sale Methods
   async getSale(id: number): Promise<Sale | undefined> {
-    return this.sales.get(id);
+    try {
+      const [sale] = await db
+        .select()
+        .from(sales)
+        .where(eq(sales.id, id));
+      return sale;
+    } catch (error) {
+      console.error("Error getting sale:", error);
+      return undefined;
+    }
   }
 
   async getSalesByUser(userId: number): Promise<Sale[]> {
-    return Array.from(this.sales.values()).filter(
-      (sale) => sale.userId === userId
-    );
+    try {
+      return await db
+        .select()
+        .from(sales)
+        .where(eq(sales.userId, userId));
+    } catch (error) {
+      console.error("Error getting sales by user:", error);
+      return [];
+    }
   }
 
   async getSalesByStore(storeId: number): Promise<Sale[]> {
-    return Array.from(this.sales.values()).filter(
-      (sale) => sale.storeId === storeId
-    );
+    try {
+      return await db
+        .select()
+        .from(sales)
+        .where(eq(sales.storeId, storeId));
+    } catch (error) {
+      console.error("Error getting sales by store:", error);
+      return [];
+    }
   }
 
   async createSale(saleData: InsertSale): Promise<Sale> {
-    const id = this.saleId++;
-    const now = new Date();
-    const sale: Sale = {
-      ...saleData,
-      id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.sales.set(id, sale);
-    return sale;
+    try {
+      const [sale] = await db
+        .insert(sales)
+        .values({
+          ...saleData,
+          status: saleData.status || "completed"
+        })
+        .returning();
+      return sale;
+    } catch (error) {
+      console.error("Error creating sale:", error);
+      throw new Error("Failed to create sale");
+    }
   }
 
   async updateSale(id: number, saleData: Partial<Sale>): Promise<Sale | undefined> {
-    const sale = this.sales.get(id);
-    if (!sale) return undefined;
-    
-    const updatedSale = {
-      ...sale,
-      ...saleData,
-      updatedAt: new Date(),
-    };
-    this.sales.set(id, updatedSale);
-    return updatedSale;
+    try {
+      const [updatedSale] = await db
+        .update(sales)
+        .set({
+          ...saleData,
+          updatedAt: new Date()
+        })
+        .where(eq(sales.id, id))
+        .returning();
+      return updatedSale;
+    } catch (error) {
+      console.error("Error updating sale:", error);
+      return undefined;
+    }
   }
 
   async deleteSale(id: number): Promise<boolean> {
-    return this.sales.delete(id);
+    try {
+      const result = await db
+        .delete(sales)
+        .where(eq(sales.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting sale:", error);
+      return false;
+    }
   }
 
   // Donation Methods
   async getDonation(id: number): Promise<Donation | undefined> {
-    return this.donations.get(id);
+    try {
+      const [donation] = await db
+        .select()
+        .from(donations)
+        .where(eq(donations.id, id));
+      return donation;
+    } catch (error) {
+      console.error("Error getting donation:", error);
+      return undefined;
+    }
   }
 
   async getDonationsByUser(userId: number): Promise<Donation[]> {
-    return Array.from(this.donations.values()).filter(
-      (donation) => donation.userId === userId
-    );
+    try {
+      return await db
+        .select()
+        .from(donations)
+        .where(eq(donations.userId, userId));
+    } catch (error) {
+      console.error("Error getting donations by user:", error);
+      return [];
+    }
   }
 
   async createDonation(donationData: InsertDonation): Promise<Donation> {
-    const id = this.donationId++;
-    const now = new Date();
-    const donation: Donation = {
-      ...donationData,
-      id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.donations.set(id, donation);
-    return donation;
+    try {
+      const [donation] = await db
+        .insert(donations)
+        .values({
+          ...donationData,
+          donationDate: donationData.donationDate || new Date()
+        })
+        .returning();
+      return donation;
+    } catch (error) {
+      console.error("Error creating donation:", error);
+      throw new Error("Failed to create donation");
+    }
   }
 
   async updateDonation(id: number, donationData: Partial<Donation>): Promise<Donation | undefined> {
-    const donation = this.donations.get(id);
-    if (!donation) return undefined;
-    
-    const updatedDonation = {
-      ...donation,
-      ...donationData,
-      updatedAt: new Date(),
-    };
-    this.donations.set(id, updatedDonation);
-    return updatedDonation;
+    try {
+      const [updatedDonation] = await db
+        .update(donations)
+        .set({
+          ...donationData,
+          updatedAt: new Date()
+        })
+        .where(eq(donations.id, id))
+        .returning();
+      return updatedDonation;
+    } catch (error) {
+      console.error("Error updating donation:", error);
+      return undefined;
+    }
   }
 
   async deleteDonation(id: number): Promise<boolean> {
-    return this.donations.delete(id);
+    try {
+      const result = await db
+        .delete(donations)
+        .where(eq(donations.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting donation:", error);
+      return false;
+    }
   }
 
   // Image Analysis Methods
@@ -800,105 +885,169 @@ export class DatabaseStorage implements IStorage {
 
   // Subscription Methods
   async getSubscription(id: number): Promise<Subscription | undefined> {
-    return this.subscriptions.get(id);
+    try {
+      const [subscription] = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.id, id));
+      return subscription;
+    } catch (error) {
+      console.error("Error getting subscription:", error);
+      return undefined;
+    }
   }
 
   async getSubscriptionByUser(userId: number): Promise<Subscription | undefined> {
-    return Array.from(this.subscriptions.values()).find(
-      (subscription) => subscription.userId === userId
-    );
+    try {
+      const [subscription] = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.userId, userId))
+        .orderBy(desc(subscriptions.createdAt))
+        .limit(1);
+      return subscription;
+    } catch (error) {
+      console.error("Error getting subscription by user:", error);
+      return undefined;
+    }
   }
 
   async createSubscription(subscriptionData: InsertSubscription): Promise<Subscription> {
-    const id = this.subscriptionId++;
-    const now = new Date();
-    const subscription: Subscription = {
-      ...subscriptionData,
-      id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.subscriptions.set(id, subscription);
-    return subscription;
+    try {
+      const [subscription] = await db
+        .insert(subscriptions)
+        .values({
+          ...subscriptionData
+        })
+        .returning();
+      return subscription;
+    } catch (error) {
+      console.error("Error creating subscription:", error);
+      throw new Error("Failed to create subscription");
+    }
   }
 
   async updateSubscription(id: number, subscriptionData: Partial<Subscription>): Promise<Subscription | undefined> {
-    const subscription = this.subscriptions.get(id);
-    if (!subscription) return undefined;
-    
-    const updatedSubscription = {
-      ...subscription,
-      ...subscriptionData,
-      updatedAt: new Date(),
-    };
-    this.subscriptions.set(id, updatedSubscription);
-    return updatedSubscription;
+    try {
+      const [updatedSubscription] = await db
+        .update(subscriptions)
+        .set({
+          ...subscriptionData,
+          updatedAt: new Date()
+        })
+        .where(eq(subscriptions.id, id))
+        .returning();
+      return updatedSubscription;
+    } catch (error) {
+      console.error("Error updating subscription:", error);
+      return undefined;
+    }
   }
 
   async deleteSubscription(id: number): Promise<boolean> {
-    return this.subscriptions.delete(id);
+    try {
+      const result = await db
+        .delete(subscriptions)
+        .where(eq(subscriptions.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting subscription:", error);
+      return false;
+    }
   }
 
   // Analytics Methods
   async getAnalyticsByUser(userId: number, startDate: Date, endDate: Date): Promise<Analytics[]> {
-    return Array.from(this.analyticsData.values()).filter(
-      (analytics) => 
-        analytics.userId === userId && 
-        analytics.date >= startDate && 
-        analytics.date <= endDate
-    );
+    try {
+      return await db
+        .select()
+        .from(analytics)
+        .where(
+          and(
+            eq(analytics.userId, userId),
+            gte(analytics.date, startDate),
+            lte(analytics.date, endDate)
+          )
+        )
+        .orderBy(desc(analytics.date));
+    } catch (error) {
+      console.error("Error getting analytics by user:", error);
+      return [];
+    }
   }
 
   async createAnalytics(analyticsData: InsertAnalytics): Promise<Analytics> {
-    const id = this.analyticsId++;
-    const now = new Date();
-    const analytics: Analytics = {
-      ...analyticsData,
-      id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.analyticsData.set(id, analytics);
-    return analytics;
+    try {
+      const [analyticsRecord] = await db
+        .insert(analytics)
+        .values({
+          ...analyticsData,
+          marketplaceData: analyticsData.marketplaceData || {}
+        })
+        .returning();
+      return analyticsRecord;
+    } catch (error) {
+      console.error("Error creating analytics:", error);
+      throw new Error("Failed to create analytics");
+    }
   }
 
   async updateAnalytics(id: number, analyticsData: Partial<Analytics>): Promise<Analytics | undefined> {
-    const analytics = this.analyticsData.get(id);
-    if (!analytics) return undefined;
-    
-    const updatedAnalytics = {
-      ...analytics,
-      ...analyticsData,
-      updatedAt: new Date(),
-    };
-    this.analyticsData.set(id, updatedAnalytics);
-    return updatedAnalytics;
+    try {
+      const [updatedAnalytics] = await db
+        .update(analytics)
+        .set({
+          ...analyticsData,
+          updatedAt: new Date()
+        })
+        .where(eq(analytics.id, id))
+        .returning();
+      return updatedAnalytics;
+    } catch (error) {
+      console.error("Error updating analytics:", error);
+      return undefined;
+    }
   }
   
   // Employee Check-in Methods
   async createEmployeeCheckin(checkinData: InsertEmployeeCheckin): Promise<EmployeeCheckin> {
-    const id = this.checkinId++;
-    const now = new Date();
-    const checkin: EmployeeCheckin = {
-      ...checkinData,
-      id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.employeeCheckins.set(id, checkin);
-    return checkin;
+    try {
+      const [checkin] = await db
+        .insert(employeeCheckins)
+        .values(checkinData)
+        .returning();
+      return checkin;
+    } catch (error) {
+      console.error("Error creating employee check-in:", error);
+      throw new Error("Failed to create employee check-in");
+    }
   }
   
   async getEmployeeCheckins(userId: number): Promise<EmployeeCheckin[]> {
-    return Array.from(this.employeeCheckins.values()).filter(
-      (checkin) => checkin.userId === userId
-    );
+    try {
+      return await db
+        .select()
+        .from(employeeCheckins)
+        .where(eq(employeeCheckins.userId, userId))
+        .orderBy(desc(employeeCheckins.timestamp));
+    } catch (error) {
+      console.error("Error getting employee check-ins:", error);
+      return [];
+    }
   }
   
   async getEmployeeCheckinsByLocation(locationId: string): Promise<EmployeeCheckin[]> {
-    return Array.from(this.employeeCheckins.values()).filter(
-      (checkin) => checkin.locationId === locationId
-    );
+    try {
+      return await db
+        .select()
+        .from(employeeCheckins)
+        .where(eq(employeeCheckins.locationId, locationId))
+        .orderBy(desc(employeeCheckins.timestamp));
+    } catch (error) {
+      console.error("Error getting employee check-ins by location:", error);
+      return [];
+    }
   }
 }
 
