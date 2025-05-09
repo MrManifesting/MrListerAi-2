@@ -1,0 +1,45 @@
+[vite] connecting...
+[vite] connected.
+Warning: validateDOMNesting(...): <a> cannot appear as a descendant of &lt;a&gt;.
+    at a
+    at a
+    at https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=702512e3:337:18
+    at div
+    at div
+    at _c9 (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/src/components/ui/card.tsx:114:12)
+    at div
+    at _c (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/src/components/ui/card.tsx:20:11)
+    at div
+    at div
+    at Login (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/src/pages/login.tsx:44:24)
+    at Route (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=702512e3:323:16)
+    at Switch (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=702512e3:379:17)
+    at UnauthenticatedApp
+    at Provider (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OXZDJRWN.js?v=702512e3:38:15)
+    at TooltipProvider (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=702512e3:61:5)
+    at App (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/src/App.tsx?v=4-gpv7PXDbukuu5slG_mo:122:37)
+    at ThemeProvider (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/src/components/theme-provider.tsx:25:3)
+    at QueryClientProvider (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=702512e3:2805:3)
+at a
+at a
+at https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=702512e3:337:18
+at div
+at div
+at _c9 (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/src/components/ui/card.tsx:114:12)
+at div
+at _c (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/src/components/ui/card.tsx:20:11)
+at div
+at div
+at Login (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/src/pages/login.tsx:44:24)
+at Route (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=702512e3:323:16)
+at Switch (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=702512e3:379:17)
+at UnauthenticatedApp
+at Provider (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OXZDJRWN.js?v=702512e3:38:15)
+at TooltipProvider (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=702512e3:61:5)
+at App (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/src/App.tsx?v=4-gpv7PXDbukuu5slG_mo:122:37)
+at ThemeProvider (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/src/components/theme-provider.tsx:25:3)
+at QueryClientProvider (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=702512e3:2805:3)
+at t.value (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://79bf7aae-e8e0-40e0-88a1-4b0c27494518-00-2v2dbdt2u4991.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400

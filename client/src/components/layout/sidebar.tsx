@@ -25,26 +25,25 @@ interface NavItemProps {
 }
 
 const NavItem = ({ icon, label, href, isActive, onClick }: NavItemProps) => (
-  <Link href={href}>
-    <a
-      onClick={onClick}
+  <Link 
+    href={href}
+    onClick={onClick}
+    className={cn(
+      "flex items-center px-3 py-2.5 text-sm font-medium rounded-md",
+      isActive
+        ? "bg-primary-50 text-primary-700"
+        : "text-gray-700 hover:bg-gray-100"
+    )}
+  >
+    <span
       className={cn(
-        "flex items-center px-3 py-2.5 text-sm font-medium rounded-md",
-        isActive
-          ? "bg-primary-50 text-primary-700"
-          : "text-gray-700 hover:bg-gray-100"
+        "text-lg mr-3",
+        isActive ? "text-primary" : "text-gray-500"
       )}
     >
-      <span
-        className={cn(
-          "text-lg mr-3",
-          isActive ? "text-primary" : "text-gray-500"
-        )}
-      >
-        {icon}
-      </span>
-      {label}
-    </a>
+      {icon}
+    </span>
+    {label}
   </Link>
 );
 
