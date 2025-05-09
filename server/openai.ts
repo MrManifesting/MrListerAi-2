@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "sk-demo-key" });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Function to analyze product images and return information
 export async function analyzeProductImage(base64Image: string): Promise<{
@@ -66,7 +66,16 @@ export async function analyzeProductImage(base64Image: string): Promise<{
     });
 
     // Parse the response
-    const result = JSON.parse(response.choices[0].message.content);
+    let result;
+    try {
+      const content = response.choices[0].message.content || "{}";
+      result = JSON.parse(content);
+      console.log("Successfully parsed OpenAI response:", Object.keys(result));
+    } catch (parseError) {
+      console.error("Error parsing OpenAI response as JSON:", parseError);
+      console.log("Raw response content:", response.choices[0].message.content);
+      result = {};
+    }
     
     return {
       title: result.title || "Unknown Item",

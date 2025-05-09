@@ -326,12 +326,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Image data is required" });
       }
       
+      console.log("Received image analysis request with base64 data length:", imageBase64.length);
+      
       const user = req.user as any;
       const result = await processProductImage(imageBase64, user.id);
       
+      console.log("Analysis completed successfully, result:", { analysisId: result.analysisId });
       res.json(result);
     } catch (error) {
-      res.status(500).json({ message: "Error analyzing image" });
+      console.error("Error analyzing image:", error);
+      res.status(500).json({ message: "Error analyzing image", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
