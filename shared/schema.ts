@@ -53,13 +53,15 @@ export const marketplaces = pgTable("marketplaces", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   name: text("name").notNull(), // ebay, shopify, etsy, etc.
+  type: text("type").notNull(), // Used for implementation-specific details
+  shopUrl: text("shop_url"), // For Shopify stores - e.g., storename.myshopify.com
   isConnected: boolean("is_connected").notNull().default(false),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
-  tokenExpiry: timestamp("token_expiry"),
-  settings: jsonb("settings"),
+  expiresAt: timestamp("expires_at"), // Token expiration date
   lastSyncedAt: timestamp("last_synced_at"),
   activeListings: integer("active_listings").default(0),
+  settings: jsonb("settings"), // Store marketplace-specific settings
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

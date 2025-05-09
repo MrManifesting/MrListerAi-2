@@ -336,6 +336,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // AI ANALYSIS ROUTES
   // Test route for OpenAI vision API
+  // MARKETPLACE ROUTES
+  app.get("/api/marketplaces", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const marketplaces = await storage.getMarketplacesByUserId(user.id);
+      res.json(marketplaces);
+    } catch (error) {
+      console.error("Error fetching marketplaces:", error);
+      res.status(500).json({ message: "Error fetching marketplaces" });
+    }
+  });
+
+  app.post("/api/marketplaces/connect", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { marketplaceName, authCode, shopUrl } = req.body;
+      
+      // Connect to marketplace platform and authenticate
+      const marketplaceData = await connectMarketplace(user.id, marketplaceName, authCode, shopUrl);
+      
+      res.status(201).json(marketplaceData);
+    } catch (error) {
+      console.error("Error connecting marketplace:", error);
+      res.status(500).json({ message: "Failed to connect marketplace" });
+    }
+  });
+
+  app.post("/api/marketplaces/sync-all", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const syncResult = await syncAllMarketplaces(user.id);
+      res.json(syncResult);
+    } catch (error) {
+      console.error("Error syncing marketplaces:", error);
+      res.status(500).json({ message: "Failed to sync marketplaces" });
+    }
+  });
+
+  app.delete("/api/marketplaces/:id", requireAuth, async (req, res) => {
+    try {
+      const marketplaceId = parseInt(req.params.id);
+      const user = req.user as any;
+      
+      // Check if marketplace belongs to user
+      const marketplace = await storage.getMarketplace(marketplaceId);
+      if (!marketplace) {
+        return res.status(404).json({ message: "Marketplace not found" });
+      }
+      
+      if (marketplace.userId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteMarketplace(marketplaceId);
+      res.json({ message: "Marketplace disconnected successfully" });
+    } catch (error) {
+      console.error("Error disconnecting marketplace:", error);
+      res.status(500).json({ message: "Error disconnecting marketplace" });
+    }
+  });
+
+  app.post("/api/marketplaces/:id/export-csv", requireAuth, async (req, res) => {
+    try {
+      const marketplaceId = parseInt(req.params.id);
+      const { inventoryIds } = req.body;
+      const user = req.user as any;
+      
+      // Check if marketplace belongs to user
+      const marketplace = await storage.getMarketplace(marketplaceId);
+      if (!marketplace) {
+        return res.status(404).json({ message: "Marketplace not found" });
+      }
+      
+      if (marketplace.userId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Generate CSV file for marketplace
+      const csvData = await generateMarketplaceCSVFile(marketplaceId, inventoryIds);
+      
+      // Save the CSV to temporary storage and return the URL
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const fileName = `${marketplace.name.toLowerCase()}-listings-${timestamp}.csv`;
+      const filePath = `temp/${fileName}`;
+      
+      // Write the CSV data to the file
+      await fs.writeFile(filePath, csvData);
+      
+      res.json({ 
+        fileUrl: `/${filePath}`,
+        fileName: fileName,
+        marketplace: marketplace.name,
+        itemCount: inventoryIds ? inventoryIds.length : 0
+      });
+    } catch (error) {
+      console.error("Error generating CSV:", error);
+      res.status(500).json({ message: "Error generating CSV file" });
+    }
+  });
+  
   app.get("/api/test/openai-vision", async (req, res) => {
     try {
       // A simple test message to verify OpenAI connectivity
