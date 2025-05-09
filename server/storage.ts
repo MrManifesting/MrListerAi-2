@@ -22,8 +22,6 @@ import {
   InsertSubscription,
   Analytics,
   InsertAnalytics,
-  EmployeeCheckin,
-  InsertEmployeeCheckin,
   // Import the table definitions as well
   users,
   inventoryItems,
@@ -33,8 +31,7 @@ import {
   donations,
   imageAnalysis,
   subscriptions,
-  analytics,
-  employeeCheckins
+  analytics
 } from "@shared/schema";
 
 export interface IStorage {
@@ -47,10 +44,7 @@ export interface IStorage {
   updateUser(id: number, userData: Partial<User>): Promise<User | undefined>;
   deleteUser(id: number): Promise<boolean>;
   
-  // Employee Management
-  createEmployeeCheckin(checkin: InsertEmployeeCheckin): Promise<EmployeeCheckin>;
-  getEmployeeCheckins(userId: number): Promise<EmployeeCheckin[]>;
-  getEmployeeCheckinsByLocation(locationId: string): Promise<EmployeeCheckin[]>;
+
 
   // Inventory Management
   getInventoryItem(id: number): Promise<InventoryItem | undefined>;
@@ -1010,45 +1004,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Employee Check-ins Methods
-  async createEmployeeCheckin(checkinData: InsertEmployeeCheckin): Promise<EmployeeCheckin> {
-    try {
-      const [checkin] = await db
-        .insert(employeeCheckins)
-        .values(checkinData)
-        .returning();
-      return checkin;
-    } catch (error) {
-      console.error("Error creating employee check-in:", error);
-      throw new Error("Failed to create employee check-in");
-    }
-  }
 
-  async getEmployeeCheckins(userId: number): Promise<EmployeeCheckin[]> {
-    try {
-      return await db
-        .select()
-        .from(employeeCheckins)
-        .where(eq(employeeCheckins.userId, userId))
-        .orderBy(desc(employeeCheckins.timestamp));
-    } catch (error) {
-      console.error("Error getting employee check-ins:", error);
-      return [];
-    }
-  }
-
-  async getEmployeeCheckinsByLocation(locationId: string): Promise<EmployeeCheckin[]> {
-    try {
-      return await db
-        .select()
-        .from(employeeCheckins)
-        .where(eq(employeeCheckins.locationId, locationId))
-        .orderBy(desc(employeeCheckins.timestamp));
-    } catch (error) {
-      console.error("Error getting employee check-ins by location:", error);
-      return [];
-    }
-  }
 }
 
 export const storage = new DatabaseStorage();

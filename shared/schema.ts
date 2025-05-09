@@ -150,16 +150,7 @@ export const analytics = pgTable("analytics", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// EMPLOYEE CHECK-INS
-export const employeeCheckins = pgTable("employee_checkins", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  locationId: varchar("location_id", { length: 255 }).notNull(),
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-  location: text("location").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+
 
 // SCHEMA FOR INSERT OPERATIONS
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -218,11 +209,7 @@ export const insertAnalyticsSchema = createInsertSchema(analytics).omit({
   updatedAt: true,
 });
 
-export const insertEmployeeCheckinSchema = createInsertSchema(employeeCheckins).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+
 
 // TYPE EXPORTS
 export type User = typeof users.$inferSelect;
@@ -251,6 +238,3 @@ export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 
 export type Analytics = typeof analytics.$inferSelect;
 export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;
-
-export type EmployeeCheckin = typeof employeeCheckins.$inferSelect;
-export type InsertEmployeeCheckin = z.infer<typeof insertEmployeeCheckinSchema>;
