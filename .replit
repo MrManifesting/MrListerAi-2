@@ -7,7 +7,7 @@ channel = "stable-24_05"
 packages = ["openai"]
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "gce"
 build = ["sh", "-c", "npm ci --omit=dev --no-audit --prefer-offline && node cleanup.js && NODE_ENV=production npm run build"]
 run = ["sh", "-c", "NODE_ENV=production node --max-old-space-size=512 dist/index.js"]
 
