@@ -1009,8 +1009,8 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     }
   }
-  
-  // Employee Check-in Methods
+
+  // Employee Check-ins Methods
   async createEmployeeCheckin(checkinData: InsertEmployeeCheckin): Promise<EmployeeCheckin> {
     try {
       const [checkin] = await db
@@ -1023,7 +1023,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Failed to create employee check-in");
     }
   }
-  
+
   async getEmployeeCheckins(userId: number): Promise<EmployeeCheckin[]> {
     try {
       return await db
@@ -1036,7 +1036,7 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
-  
+
   async getEmployeeCheckinsByLocation(locationId: string): Promise<EmployeeCheckin[]> {
     try {
       return await db
