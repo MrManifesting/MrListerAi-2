@@ -53,17 +53,14 @@ export default function Register() {
       // Remove confirmPassword since it's not in the schema
       const { confirmPassword, ...registrationData } = data;
       
-      return await apiRequest("/api/auth/register", {
-        method: "POST",
-        body: JSON.stringify({
-          ...registrationData,
-          role: "seller",
-          subscription: "basic"
-        })
+      return await apiRequest("POST", "/api/register", {
+        ...registrationData,
+        role: "seller",
+        subscription: "basic"
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       toast({
         title: "Registration successful",
         description: "Your account has been created. Welcome to Mr. Lister!",
