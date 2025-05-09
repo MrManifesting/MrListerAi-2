@@ -114,6 +114,12 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
                         src={item.thumbnailUrl}
                         alt={item.title}
                         className="h-16 w-16 rounded-md object-cover border-2 border-border hover:border-primary transition-all duration-200 shadow-sm hover:shadow-md"
+                        onError={(e) => {
+                          // If thumbnail fails, try the full image
+                          if (item.imageUrls && item.imageUrls.length > 0) {
+                            e.currentTarget.src = item.imageUrls[0];
+                          }
+                        }}
                       />
                     ) : (
                       item.imageUrls && item.imageUrls.length > 0 ? (
