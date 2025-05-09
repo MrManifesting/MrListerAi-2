@@ -1295,6 +1295,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TEST ROUTES for Database Integration
+  
+  // Test image processing with database
+  app.post("/api/test/image-processing", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const { imageBase64 } = req.body;
+      if (!imageBase64) {
+        return res.status(400).json({ error: "Image data is required" });
+      }
+
+      // Process the image using our AI service
+      const result = await processProductImage(imageBase64, req.user.id);
+      
+      // Return the analysis results
+      res.json({
+        success: true,
+        analysisId: result.analysisId,
+        results: result.results,
+        message: "Image processed successfully and saved to database"
+      });
+    } catch (error) {
+      console.error("Error in image processing test:", error);
+      res.status(500).json({ 
+        error: "Failed to process image",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Test retrieving image analyses from database
+  app.get("/api/test/image-analyses", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      // Get all analyses for the user from database
+      const analyses = await storage.getImageAnalysesByUser(req.user.id);
+      
+      res.json({
+        success: true,
+        count: analyses.length,
+        analyses
+      });
+    } catch (error) {
+      console.error("Error retrieving image analyses:", error);
+      res.status(500).json({ error: "Failed to retrieve image analyses" });
+    }
+  });
+  
+  // Test marketplace integration with database
+  app.post("/api/test/marketplace-connect", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const { marketplaceType, credentials } = req.body;
+      if (!marketplaceType) {
+        return res.status(400).json({ error: "Marketplace type is required" });
+      }
+
+      // Connect to marketplace and store in database
+      const marketplace = await connectMarketplace(
+        req.user.id, 
+        marketplaceType, 
+        credentials || {}
+      );
+      
+      res.json({
+        success: true,
+        marketplace,
+        message: `Successfully connected to ${marketplace.name}`
+      });
+    } catch (error) {
+      console.error("Error in marketplace connect test:", error);
+      res.status(500).json({ error: "Failed to connect marketplace" });
+    }
+  });
+
+  // Test getting marketplaces from database
+  app.get("/api/test/marketplaces", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      // Get all marketplaces for the user from database
+      const marketplaces = await storage.getMarketplacesByUser(req.user.id);
+      
+      res.json({
+        success: true,
+        count: marketplaces.length,
+        marketplaces
+      });
+    } catch (error) {
+      console.error("Error retrieving marketplaces:", error);
+      res.status(500).json({ error: "Failed to retrieve marketplaces" });
+    }
+  });
+  
+  // Test CSV generation for a marketplace
+  app.post("/api/test/generate-csv", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const { marketplaceId, marketplaceType } = req.body;
+      if (!marketplaceType) {
+        return res.status(400).json({ error: "Marketplace type is required" });
+      }
+      
+      // Get the marketplace if ID provided
+      let marketplace: Marketplace | undefined;
+      if (marketplaceId) {
+        marketplace = await storage.getMarketplace(marketplaceId);
+        if (!marketplace || marketplace.userId !== req.user.id) {
+          return res.status(404).json({ error: "Marketplace not found" });
+        }
+      }
+      
+      // Generate CSV file
+      const csvResult = await generateMarketplaceCSVFile(
+        req.user.id,
+        marketplaceType,
+        marketplace?.id
+      );
+      
+      res.json({
+        success: true,
+        csvPath: csvResult.filePath,
+        itemCount: csvResult.itemCount,
+        message: `Successfully generated CSV file for ${marketplaceType}`
+      });
+    } catch (error) {
+      console.error("Error in CSV generation test:", error);
+      res.status(500).json({ 
+        error: "Failed to generate CSV",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Test inventory item retrieval
+  app.get("/api/test/inventory", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      // Get inventory items for the user
+      const items = await storage.getInventoryItemsByUser(req.user.id);
+      
+      res.json({
+        success: true,
+        count: items.length,
+        items
+      });
+    } catch (error) {
+      console.error("Error retrieving inventory items:", error);
+      res.status(500).json({ error: "Failed to retrieve inventory items" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
