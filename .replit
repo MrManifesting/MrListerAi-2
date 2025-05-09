@@ -14,7 +14,6 @@ run = ["sh", "-c", "NODE_ENV=production node --max-old-space-size=512 dist/index
 [env]
 REPLIT_DISABLE_PACKAGE_LAYER = "1"
 REPLIT_KEEP_PACKAGE_DEV_DEPENDENCIES = "1"
-NODE_ENV = "production"
 REPLIT_BUILD_INCLUDE_DEV_DEPS = "1"
 
 [[ports]]

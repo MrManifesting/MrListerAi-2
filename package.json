@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
-    "build": "rm -rf dist && NODE_ENV=production npx vite build --debug && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --minify --outdir=dist",
+    "build": "rm -rf dist && NODE_ENV=production npx vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --minify --outdir=dist",
     "cleanup": "node cleanup.js",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
