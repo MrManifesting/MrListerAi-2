@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import * as path from "path";
+import fs from "fs/promises";
 import { storage } from "./storage";
 import {
   processProductImage,
@@ -532,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Read the CSV file
-      const csvContent = await fs.promises.readFile(filePath, 'utf8');
+      const csvContent = await fs.readFile(filePath, { encoding: 'utf8' });
       
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
