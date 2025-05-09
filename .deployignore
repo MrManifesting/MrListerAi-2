@@ -1,8 +1,5 @@
-
 # Deployment ignore file
 node_modules/.cache/
-node_modules/**/*.map
-client/node_modules/.cache/
 .git/
 .config/
 temp/
@@ -14,23 +11,3 @@ __tests__/
 coverage/
 .vscode/
 .idea/
-
-# Development assets
-**/*.dev.*
-**/*.test.*
-**/*.spec.*
-**/tests/
-**/test/
-**/docs/
-**/doc/
-**/examples/
-
-# Client build artifacts that will be rebuilt
-client/.vite/
-client/dist/
-
-# Large packages in development dependencies
-node_modules/@typescript-eslint/
-node_modules/eslint/
-node_modules/prettier/
-node_modules/@types/
