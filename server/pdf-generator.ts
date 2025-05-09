@@ -1,6 +1,6 @@
 import * as pdfMakeType from 'pdfmake/build/pdfmake.js';
 import * as pdfFontsType from 'pdfmake/build/vfs_fonts.js';
-import { TDocumentDefinitions, TDocumentStyles } from 'pdfmake/interfaces';
+import { TDocumentDefinitions, TDocumentStyles } from 'pdfmake/interfaces.js';
 import { InventoryItem } from '@shared/schema';
 import { storage } from './storage';
 
