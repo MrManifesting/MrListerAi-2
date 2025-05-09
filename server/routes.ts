@@ -337,16 +337,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Image data is required" });
       }
       
-      console.log("Received image analysis request with base64 data length:", imageBase64.length);
+      if (typeof imageBase64 !== 'string' || imageBase64.length < 100) {
+        console.error("Invalid image data format, length:", typeof imageBase64 === 'string' ? imageBase64.length : 'not a string');
+        return res.status(400).json({ message: "Invalid image data format or too small" });
+      }
+      
+      console.log(`Received image analysis request with base64 data length: ${imageBase64.length}`);
       
       const user = req.user as any;
+      console.log(`Processing image for user ID: ${user.id}`);
+      
       const result = await processProductImage(imageBase64, user.id);
       
-      console.log("Analysis completed successfully, result:", { analysisId: result.analysisId });
+      if (!result || !result.analysisId) {
+        console.error('Empty or invalid result from processProductImage');
+        return res.status(500).json({ message: "Failed to process image analysis" });
+      }
+      
+      console.log(`Analysis completed successfully, ID: ${result.analysisId}`);
       res.json(result);
     } catch (error) {
       console.error("Error analyzing image:", error);
-      res.status(500).json({ message: "Error analyzing image", error: error instanceof Error ? error.message : String(error) });
+      if (error instanceof Error) {
+        console.error("Error stack:", error.stack);
+      }
+      res.status(500).json({ 
+        message: "Error analyzing image", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 

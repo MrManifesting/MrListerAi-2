@@ -46,14 +46,23 @@ export async function analyzeProductImage(base64Image: string): Promise<{
   materials: string[];
 }> {
   try {
+    console.log(`Analyzing product image with base64 data of length: ${base64Image.length}`);
+    
+    // Check if base64 data is valid
+    if (!base64Image || base64Image.length < 100) {
+      console.error("Invalid base64 image data received, length too short:", base64Image.length);
+      throw new Error("Invalid image data received");
+    }
+
     // Call OpenAI vision model to analyze the image
+    console.log("Calling OpenAI vision model...");
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
       messages: [
         {
           role: "system",
           content: 
-            "You are an expert e-commerce product analyst specializing in identifying, categorizing, and pricing items from images. You have extensive knowledge of product details, brands, models, and marketplace trends. You can also detect barcodes, QR codes, or product identifiers in images when visible. Analyze the image and provide detailed information in JSON format."
+            "You are an expert e-commerce product analyst specializing in identifying, categorizing, and pricing items from images. You have extensive knowledge of product details, brands, models, and marketplace trends. You can also detect barcodes, QR codes, or product identifiers in images when visible. Your goal is to provide accurate, detailed information that can be used to create professional marketplace listings. For each request, return a JSON object with the requested fields. If you can't determine a specific value, use a reasonable default rather than leaving it empty."
         },
         {
           role: "user",
@@ -66,15 +75,15 @@ export async function analyzeProductImage(base64Image: string): Promise<{
                 "3. category: Category hierarchy in format 'MainCategory > Subcategory > SubSubcategory' " +
                 "4. condition: Assessment on scale: New, Like New, Very Good, Good, Acceptable " +
                 "5. suggestedPrice: Suggested listing price (number only, USD) " +
-                "6. priceRange: Market price range as min and max values (numbers only, USD) " +
+                "6. priceRange: { min: lowestPrice, max: highestPrice } (numbers only, USD) " +
                 "7. brand: Brand name (if visible or identifiable) " +
                 "8. model: Model number or name (if visible or identifiable) " +
                 "9. features: Array of 3-5 key product features " +
                 "10. keywords: Array of 5-7 relevant search keywords for marketplaces " +
                 "11. detectedBarcode: Any visible barcode or QR code number (null if none) " +
                 "12. barcodeType: Type of detected barcode (UPC, EAN, QR, etc., or null if none) " +
-                "13. dimensions: Object with length, width, height and unit (if estimable, or null) " +
-                "14. weight: Object with value and unit (if estimable, or null) " +
+                "13. dimensions: { length: number, width: number, height: number, unit: 'in' or 'cm' } (or null) " +
+                "14. weight: { value: number, unit: 'lb' or 'kg' } (or null) " +
                 "15. materials: Array of primary materials used in the product"
             },
             {
@@ -86,22 +95,35 @@ export async function analyzeProductImage(base64Image: string): Promise<{
           ]
         }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: "json_object" },
+      temperature: 0.2 // Lower temperature for more consistent results
     });
 
+    console.log("OpenAI response received");
+    
     // Parse the response
     let result;
     try {
       const content = response.choices[0].message.content || "{}";
+      // Add detailed logging
+      console.log("Raw OpenAI response:", content.substring(0, 200) + "...");
+      
       result = JSON.parse(content);
-      console.log("Successfully parsed OpenAI response:", Object.keys(result));
+      console.log("Successfully parsed OpenAI response, fields:", Object.keys(result).join(", "));
+      
+      // Additional validation on parsed results
+      if (!result.title || !result.category) {
+        console.warn("OpenAI response missing critical fields:", 
+          Object.keys(result).filter(k => !result[k]).join(", "));
+      }
     } catch (parseError) {
       console.error("Error parsing OpenAI response as JSON:", parseError);
       console.log("Raw response content:", response.choices[0].message.content);
       result = {};
     }
     
-    return {
+    // Ensure consistent return structure with defaults
+    const analysis = {
       title: result.title || "Unknown Item",
       description: result.description || "No description available",
       category: result.category || "Other",
@@ -113,16 +135,23 @@ export async function analyzeProductImage(base64Image: string): Promise<{
       },
       brand: result.brand || "Unknown",
       model: result.model || "",
-      features: result.features || [],
-      keywords: result.keywords || [],
+      features: Array.isArray(result.features) ? result.features : [],
+      keywords: Array.isArray(result.keywords) ? result.keywords : [],
       detectedBarcode: result.detectedBarcode || null,
       barcodeType: result.barcodeType || null,
       dimensions: result.dimensions || null,
       weight: result.weight || null,
-      materials: result.materials || []
+      materials: Array.isArray(result.materials) ? result.materials : []
     };
+    
+    console.log("Returning analysis results with title:", analysis.title);
+    return analysis;
   } catch (error) {
     console.error("Error analyzing product image:", error);
+    if (error instanceof Error) {
+      console.error("Error stack:", error.stack);
+    }
+    
     // Return default values if analysis fails
     return {
       title: "Unknown Item",

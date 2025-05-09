@@ -20,11 +20,45 @@ export function ImageUpload({ onAnalysisComplete }: ImageUploadProps) {
   // Analyze image mutation
   const analyzeMutation = useMutation({
     mutationFn: async (imageBase64: string) => {
-      const response = await apiRequest("POST", "/api/analyze/image", { imageBase64 });
-      return response.json();
+      console.log(`Sending image with base64 length: ${imageBase64.length}`);
+      // Add timeout to handle long-running API calls
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      
+      try {
+        const response = await apiRequest(
+          "POST", 
+          "/api/analyze/image", 
+          { imageBase64 },
+          { signal: controller.signal }
+        );
+        clearTimeout(timeoutId);
+        return response.json();
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          throw new Error('Image analysis request timed out. Please try again with a smaller image.');
+        }
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      console.log("Analysis complete with data:", { analysisId: data.analysisId });
+      
+      if (!data.analysisId || !data.results) {
+        console.error("Invalid response data:", data);
+        toast({
+          title: "Analysis returned invalid data",
+          description: "There was an issue with the analysis results. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       onAnalysisComplete(data.analysisId, data.results);
+      
+      // Update progress
+      setFileProgress((currentFileIndex + 1) / processingFiles.length * 100);
       
       // Process next file if available
       setCurrentFileIndex((prev) => {
@@ -39,10 +73,12 @@ export function ImageUpload({ onAnalysisComplete }: ImageUploadProps) {
         return 0;
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Image analysis error:", error);
+      
       toast({
         title: "Analysis failed",
-        description: "There was an error analyzing your image. Please try again.",
+        description: error.message || "There was an error analyzing your image. Please try again.",
         variant: "destructive",
       });
       

@@ -90,29 +90,32 @@ export async function processProductImage(
     const mockImageUrl = `https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&h=400`;
     console.log('Using placeholder image URL for demonstration');
     
-    // Store the enhanced analysis results
+    // Store the enhanced analysis results with better data validation and type handling
     const analysisData: InsertImageAnalysis = {
       userId,
       originalImageUrl: mockImageUrl,
       processedImageUrl: mockImageUrl,
-      detectedItem: analysisResults.title,
-      suggestedTitle: analysisResults.title,
-      suggestedDescription: analysisResults.description,
-      suggestedCategory: analysisResults.category,
-      suggestedCondition: analysisResults.condition,
-      suggestedPrice: analysisResults.suggestedPrice,
-      marketPriceRange: analysisResults.priceRange,
-      // Include enhanced AI data for use in inventory item creation
+      detectedItem: analysisResults.title || "Unknown Item",
+      suggestedTitle: analysisResults.title || "Unknown Item",
+      suggestedDescription: analysisResults.description || "No description available",
+      suggestedCategory: analysisResults.category || "Other",
+      suggestedCondition: analysisResults.condition || "Good",
+      suggestedPrice: analysisResults.suggestedPrice || 0,
+      marketPriceRange: {
+        min: typeof analysisResults.priceRange?.min === 'number' ? analysisResults.priceRange.min : 0,
+        max: typeof analysisResults.priceRange?.max === 'number' ? analysisResults.priceRange.max : 0
+      },
+      // Include enhanced AI data for use in inventory item creation, with proper type handling
       aiData: {
-        brand: analysisResults.brand,
-        model: analysisResults.model,
-        features: analysisResults.features,
-        keywords: analysisResults.keywords,
-        detectedBarcode: analysisResults.detectedBarcode,
-        barcodeType: analysisResults.barcodeType,
-        dimensions: analysisResults.dimensions,
-        weight: analysisResults.weight,
-        materials: analysisResults.materials
+        brand: analysisResults.brand || "Unknown",
+        model: analysisResults.model || "",
+        features: Array.isArray(analysisResults.features) ? analysisResults.features : [],
+        keywords: Array.isArray(analysisResults.keywords) ? analysisResults.keywords : [],
+        detectedBarcode: analysisResults.detectedBarcode || null,
+        barcodeType: analysisResults.barcodeType || null,
+        dimensions: analysisResults.dimensions || null,
+        weight: analysisResults.weight || null,
+        materials: Array.isArray(analysisResults.materials) ? analysisResults.materials : []
       },
       status: 'completed'
     };
