@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, Scan, ArrowLeft, ZapOff, Camera, ShieldCheck } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Loader2, Scan, ArrowLeft, ZapOff, Camera, ShieldCheck, Briefcase, Package, UserCheck, MapPin } from "lucide-react";
 
 interface ScannedItem {
   id: number;
@@ -26,7 +28,10 @@ interface ScannedItem {
 interface ScanResult {
   code: string;
   type: string;
-  item?: ScannedItem; 
+  item?: ScannedItem;
+  timestamp?: Date;
+  employeeId?: string;
+  actionType?: 'intake' | 'fulfillment';
 }
 
 const MobileScanner = () => {
@@ -38,8 +43,51 @@ const MobileScanner = () => {
   const [scanHistory, setScanHistory] = useState<ScanResult[]>([]);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [scanMode, setScanMode] = useState<'inventory' | 'employee'>('inventory');
+  const [currentLocation, setCurrentLocation] = useState<string>('');
   
   // Query to get item details by barcode
+  // Employee ID tracking mutation
+  const trackEmployeeActionMutation = useMutation({
+    mutationFn: async (actionData: { 
+      employeeId: string, 
+      actionType: 'intake' | 'fulfillment',
+      inventoryItemId?: number 
+    }) => {
+      const res = await apiRequest("POST", "/api/inventory/track-action", actionData);
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      setScanHistory(prev => {
+        // Filter out previous scans of the same code
+        const filtered = prev.filter(item => item.code !== lastScannedCode);
+        return [
+          {
+            code: lastScannedCode as string,
+            type: 'QR Code',
+            employeeId: data.employeeId,
+            actionType: data.actionType,
+            timestamp: new Date(data.timestamp)
+          },
+          ...filtered
+        ].slice(0, 10); // Keep last 10 scans
+      });
+      
+      toast({
+        title: "Action Recorded",
+        description: `Employee ${data.employeeId} - ${data.actionType}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Action Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Barcode lookup mutation
   const getItemByBarcodeMutation = useMutation({
     mutationFn: async (barcode: string) => {
       const res = await apiRequest("GET", `/api/inventory/barcode/${barcode}`);
@@ -119,8 +167,30 @@ const MobileScanner = () => {
       if (code && code.data && code.data !== lastScannedCode) {
         setLastScannedCode(code.data);
         
-        // Lookup the scanned barcode
-        getItemByBarcodeMutation.mutate(code.data);
+        // Handle based on scan mode
+        if (scanMode === 'inventory') {
+          // Lookup the scanned barcode
+          getItemByBarcodeMutation.mutate(code.data);
+        } else if (scanMode === 'employee') {
+          // Check if the QR code starts with the expected format
+          if (code.data.startsWith('EMPLOYEE:')) {
+            // Extract employee ID
+            const employeeId = code.data.split(':')[1];
+            
+            // Track employee action
+            trackEmployeeActionMutation.mutate({
+              employeeId,
+              actionType: 'intake', // Default to intake, could add a toggle in UI for fulfillment
+              inventoryItemId: undefined // Could be set when scanning an inventory item first
+            });
+          } else {
+            toast({
+              title: "Invalid Employee QR Code",
+              description: "This doesn't look like an employee ID QR code.",
+              variant: "destructive"
+            });
+          }
+        }
         
         // If not continuous scanning, stop after successful scan
         if (!isContinuousScan) {
@@ -133,7 +203,16 @@ const MobileScanner = () => {
         requestAnimationFrame(processFrame);
       }
     };
-  }, [isScanning, lastScannedCode, isContinuousScan, getItemByBarcodeMutation]);
+  }, [
+    isScanning, 
+    lastScannedCode, 
+    isContinuousScan, 
+    getItemByBarcodeMutation, 
+    trackEmployeeActionMutation,
+    scanMode,
+    currentLocation,
+    toast
+  ]);
 
   // Start scanning process
   const startScanning = useCallback(() => {
@@ -206,69 +285,169 @@ const MobileScanner = () => {
       
       <main className="flex-1 p-4 overflow-auto">
         <div className="max-w-md mx-auto space-y-4">
-          {/* Scanner View */}
-          <Card className="overflow-hidden">
-            <CardHeader className="p-4">
-              <CardTitle className="text-lg">Barcode Scanner</CardTitle>
-              <CardDescription>
-                Point camera at a barcode to scan
-              </CardDescription>
-            </CardHeader>
+          {/* Scan Mode Tabs */}
+          <Tabs 
+            defaultValue="inventory" 
+            onValueChange={(value) => setScanMode(value as 'inventory' | 'employee')}
+            value={scanMode}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="inventory" className="flex items-center justify-center">
+                <Package className="mr-2 h-4 w-4" /> Inventory
+              </TabsTrigger>
+              <TabsTrigger value="employee" className="flex items-center justify-center">
+                <UserCheck className="mr-2 h-4 w-4" /> Employee
+              </TabsTrigger>
+            </TabsList>
             
-            <div className="relative bg-black aspect-square overflow-hidden">
-              {isInitializing ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader2 className="h-10 w-10 text-white animate-spin" />
-                  <span className="text-white ml-2">Initializing camera...</span>
+            <TabsContent value="inventory">
+              <Card className="overflow-hidden">
+                <CardHeader className="p-4">
+                  <CardTitle className="text-lg">Barcode Scanner</CardTitle>
+                  <CardDescription>
+                    Point camera at a barcode to scan inventory items
+                  </CardDescription>
+                </CardHeader>
+                
+                <div className="relative bg-black aspect-square overflow-hidden">
+                  {isInitializing ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="h-10 w-10 text-white animate-spin" />
+                      <span className="text-white ml-2">Initializing camera...</span>
+                    </div>
+                  ) : (
+                    <Webcam
+                      ref={webcamRef}
+                      audio={false}
+                      screenshotFormat="image/jpeg"
+                      videoConstraints={{
+                        facingMode: isFrontCamera ? "user" : "environment",
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                  
+                  {isScanning && (
+                    <div className="absolute inset-0 border-2 border-primary/70 pointer-events-none">
+                      <div className="absolute top-1/2 left-0 w-full h-0.5 bg-primary/70 animate-pulse"></div>
+                      <div className="absolute top-0 left-1/2 h-full w-0.5 bg-primary/70 animate-pulse"></div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <Webcam
-                  ref={webcamRef}
-                  audio={false}
-                  screenshotFormat="image/jpeg"
-                  videoConstraints={{
-                    facingMode: isFrontCamera ? "user" : "environment",
-                  }}
-                  className="w-full h-full object-cover"
-                />
-              )}
-              
-              {isScanning && (
-                <div className="absolute inset-0 border-2 border-primary/70 pointer-events-none">
-                  <div className="absolute top-1/2 left-0 w-full h-0.5 bg-primary/70 animate-pulse"></div>
-                  <div className="absolute top-0 left-1/2 h-full w-0.5 bg-primary/70 animate-pulse"></div>
-                </div>
-              )}
-            </div>
+                
+                <CardFooter className="flex justify-between p-4 bg-muted/10">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="continuous"
+                      checked={isContinuousScan}
+                      onCheckedChange={setIsContinuousScan}
+                    />
+                    <Label htmlFor="continuous">Continuous</Label>
+                  </div>
+                  
+                  <Button
+                    variant={isScanning ? "destructive" : "default"}
+                    onClick={isScanning ? stopScanning : startScanning}
+                    disabled={isInitializing}
+                    className="min-w-[120px]"
+                  >
+                    {isScanning ? (
+                      <>
+                        <ZapOff className="mr-2 h-4 w-4" /> Stop
+                      </>
+                    ) : (
+                      <>
+                        <Scan className="mr-2 h-4 w-4" /> Start Scan
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
             
-            <CardFooter className="flex justify-between p-4 bg-muted/10">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="continuous"
-                  checked={isContinuousScan}
-                  onCheckedChange={setIsContinuousScan}
-                />
-                <Label htmlFor="continuous">Continuous</Label>
-              </div>
-              
-              <Button
-                variant={isScanning ? "destructive" : "default"}
-                onClick={isScanning ? stopScanning : startScanning}
-                disabled={isInitializing}
-                className="min-w-[120px]"
-              >
-                {isScanning ? (
-                  <>
-                    <ZapOff className="mr-2 h-4 w-4" /> Stop
-                  </>
-                ) : (
-                  <>
-                    <Scan className="mr-2 h-4 w-4" /> Start Scan
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
+            <TabsContent value="employee">
+              <Card className="overflow-hidden">
+                <CardHeader className="p-4">
+                  <CardTitle className="text-lg">Employee Check-in</CardTitle>
+                  <CardDescription>
+                    Scan QR codes for employee check-ins
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent className="p-4">
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="location">Location</Label>
+                      <div className="flex items-center mt-1">
+                        <MapPin className="h-4 w-4 text-muted-foreground mr-2" />
+                        <Input 
+                          id="location"
+                          placeholder="Enter location name"
+                          value={currentLocation}
+                          onChange={(e) => setCurrentLocation(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                
+                <div className="relative bg-black aspect-square overflow-hidden">
+                  {isInitializing ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="h-10 w-10 text-white animate-spin" />
+                      <span className="text-white ml-2">Initializing camera...</span>
+                    </div>
+                  ) : (
+                    <Webcam
+                      ref={webcamRef}
+                      audio={false}
+                      screenshotFormat="image/jpeg"
+                      videoConstraints={{
+                        facingMode: isFrontCamera ? "user" : "environment",
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                  
+                  {isScanning && (
+                    <div className="absolute inset-0 border-2 border-primary/70 pointer-events-none">
+                      <div className="absolute top-1/2 left-0 w-full h-0.5 bg-primary/70 animate-pulse"></div>
+                      <div className="absolute top-0 left-1/2 h-full w-0.5 bg-primary/70 animate-pulse"></div>
+                    </div>
+                  )}
+                </div>
+                
+                <CardFooter className="flex justify-between p-4 bg-muted/10">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="continuous-employee"
+                      checked={isContinuousScan}
+                      onCheckedChange={setIsContinuousScan}
+                    />
+                    <Label htmlFor="continuous-employee">Continuous</Label>
+                  </div>
+                  
+                  <Button
+                    variant={isScanning ? "destructive" : "default"}
+                    onClick={isScanning ? stopScanning : startScanning}
+                    disabled={isInitializing || !currentLocation}
+                    className="min-w-[120px]"
+                  >
+                    {isScanning ? (
+                      <>
+                        <ZapOff className="mr-2 h-4 w-4" /> Stop
+                      </>
+                    ) : (
+                      <>
+                        <Scan className="mr-2 h-4 w-4" /> Start Scan
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+          </Tabs>
           
           {/* Scan History */}
           {scanHistory.length > 0 && (
@@ -281,15 +460,40 @@ const MobileScanner = () => {
                   {scanHistory.map((scan, index) => (
                     <div key={index} className="p-4 flex items-center">
                       <div className="flex-1">
-                        <div className="font-medium">{scan.item?.title || "Unknown Item"}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {scan.code} ({scan.type})
-                        </div>
-                        {scan.item && (
-                          <div className="mt-1 flex items-center">
-                            <ShieldCheck className="h-3 w-3 text-green-500 mr-1" />
-                            <span className="text-xs text-muted-foreground">{scan.item.sku} - ${scan.item.price}</span>
-                          </div>
+                        {scan.item ? (
+                          // Inventory item scan
+                          <>
+                            <div className="font-medium">{scan.item.title}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {scan.code} ({scan.type})
+                            </div>
+                            <div className="mt-1 flex items-center">
+                              <ShieldCheck className="h-3 w-3 text-green-500 mr-1" />
+                              <span className="text-xs text-muted-foreground">{scan.item.sku} - ${scan.item.price}</span>
+                            </div>
+                          </>
+                        ) : scan.checkinTime ? (
+                          // Employee check-in
+                          <>
+                            <div className="font-medium">Employee Check-in</div>
+                            <div className="text-sm text-muted-foreground">
+                              {scan.code} ({scan.type})
+                            </div>
+                            <div className="mt-1 flex items-center">
+                              <MapPin className="h-3 w-3 text-blue-500 mr-1" />
+                              <span className="text-xs text-muted-foreground">
+                                {scan.location} - {scan.checkinTime.toLocaleTimeString()}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          // Unknown scan
+                          <>
+                            <div className="font-medium">Unknown Item</div>
+                            <div className="text-sm text-muted-foreground">
+                              {scan.code} ({scan.type})
+                            </div>
+                          </>
                         )}
                       </div>
                       
