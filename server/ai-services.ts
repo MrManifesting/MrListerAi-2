@@ -3,6 +3,10 @@ import { storage } from './storage';
 import { InsertImageAnalysis, InsertInventoryItem } from '@shared/schema';
 import * as crypto from 'crypto';
 import * as QRCode from 'qrcode';
+import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
+import * as path from 'path';
+import sharp from 'sharp';
 
 // Helper to generate a SKU based on various product attributes
 function generateSku(itemData: {
@@ -91,28 +95,25 @@ export async function processProductImage(
     
     // Use our image processor to create and store the image
     const tempDir = 'temp';
-    const fs = require('fs');
-    const path = require('path');
     
     // Ensure temp directory exists
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
+    if (!fsSync.existsSync(tempDir)) {
+      fsSync.mkdirSync(tempDir, { recursive: true });
     }
     
     const imagePath = path.join(tempDir, filename);
     const thumbnailPath = path.join(tempDir, `thumb-${filename}`);
     
     // Write the original image
-    await fs.promises.writeFile(imagePath, imageBuffer);
+    await fs.writeFile(imagePath, imageBuffer);
     
     // Create a thumbnail version
-    const sharp = require('sharp');
     const thumbnailBuffer = await sharp(imageBuffer)
       .resize(200, 200, { fit: 'inside' })
       .toBuffer();
     
     // Write the thumbnail
-    await fs.promises.writeFile(thumbnailPath, thumbnailBuffer);
+    await fs.writeFile(thumbnailPath, thumbnailBuffer);
     
     // Create URLs for the images
     const originalImageUrl = `/temp/${filename}`;
