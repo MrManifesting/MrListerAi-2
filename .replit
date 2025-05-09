@@ -8,7 +8,7 @@ packages = ["openai"]
 
 [deployment]
 deploymentTarget = "autoscale"
-build = ["sh", "-c", "npm ci --omit=dev && npm install -D esbuild vite @vitejs/plugin-react typescript && NODE_ENV=production npm run build"]
+build = ["sh", "-c", "npm ci && NODE_ENV=production npm run build"]
 run = ["sh", "-c", "NODE_ENV=production node --max-old-space-size=512 dist/index.js"]
 
 [env]
@@ -22,7 +22,7 @@ localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "Project"
+runButton = "Start Production App"
 
 [[workflows.workflow]]
 name = "Project"
@@ -41,3 +41,20 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Start Production App"
+author = 30752682
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm ci"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production npm run build"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production node --max-old-space-size=512 dist/index.js"
