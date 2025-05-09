@@ -4,11 +4,19 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Marketplace } from '../../shared/schema';
 
-export interface MarketplaceConnectionParams {
-  marketplaceName: "Shopify" | "eBay" | "Etsy" | "Amazon";
+// Define specific types for marketplace connections
+type ShopifyConnectionParams = {
+  marketplaceName: "Shopify";
   authCode: string;
-  shopUrl?: string;
-}
+  shopUrl: string;
+};
+
+type StandardConnectionParams = {
+  marketplaceName: "eBay" | "Etsy" | "Amazon";
+  authCode: string;
+};
+
+export type MarketplaceConnectionParams = ShopifyConnectionParams | StandardConnectionParams;
 
 export function useMarketplaces() {
   const { toast } = useToast();

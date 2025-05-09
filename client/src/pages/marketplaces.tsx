@@ -120,6 +120,7 @@ export default function Marketplaces() {
     disconnectMarketplace,
     generateCSVExport,
     downloadCSVExport,
+    generateCSVExportMutation,
   } = useMarketplaces();
 
   // Get inventory items
