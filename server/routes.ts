@@ -14,7 +14,7 @@ import {
   getMarketplaceListings,
   createMarketplaceListing,
   syncAllMarketplaces,
-  generateMarketplaceCSV
+  generateMarketplaceCSVFile
 } from "./marketplace-api";
 import {
   generateBarcodeLabels,
@@ -516,18 +516,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inventory/export-csv", requireAuth, async (req, res) => {
     try {
-      const { marketplaceName, inventoryIds } = req.body;
+      const { marketplaceId, inventoryIds } = req.body;
       
-      if (!marketplaceName) {
-        return res.status(400).json({ message: "Marketplace name is required" });
+      if (!marketplaceId) {
+        return res.status(400).json({ message: "Marketplace ID is required" });
       }
       
       const user = req.user as any;
-      const csv = await generateMarketplaceCSV(user.id, marketplaceName, inventoryIds);
+      const { filePath, fileName } = await generateMarketplaceCSVFile(parseInt(marketplaceId), inventoryIds);
+      
+      // Get the marketplace to use its name
+      const marketplace = await storage.getMarketplace(parseInt(marketplaceId));
+      if (!marketplace) {
+        return res.status(404).json({ message: "Marketplace not found" });
+      }
+      
+      // Read the CSV file
+      const csvContent = await fs.promises.readFile(filePath, 'utf8');
       
       res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="${marketplaceName.toLowerCase()}-listings.csv"`);
-      res.send(csv);
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.send(csvContent);
     } catch (error) {
       res.status(500).json({ message: "Error generating CSV export" });
     }
