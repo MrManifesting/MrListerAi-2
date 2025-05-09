@@ -25,8 +25,17 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine, 
   User,
-  ClipboardList
+  ClipboardList,
+  Flashlight,
+  FlashlightOff,
+  RefreshCw,
+  History,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -63,10 +72,13 @@ const MobileScanner = () => {
   const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
   const [scanHistory, setScanHistory] = useState<ScanResult[]>([]);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
+  const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [scanMode, setScanMode] = useState<'inventory' | 'employee'>('inventory');
   const [actionType, setActionType] = useState<'intake' | 'fulfillment'>('intake');
   const [lastScannedInventoryItem, setLastScannedInventoryItem] = useState<ScannedItem | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
   
   // Query to get item details by barcode
   // Employee ID tracking mutation
@@ -283,7 +295,7 @@ const MobileScanner = () => {
         <meta name="description" content="Scan barcodes to quickly find inventory items and manage your inventory on the go." />
       </Helmet>
       
-      <header className="py-4 px-4 flex items-center justify-between bg-background/50 backdrop-blur-sm border-b">
+      <header className="py-4 px-4 flex items-center justify-between bg-background/50 backdrop-blur-sm border-b sticky top-0 z-10">
         <div className="flex items-center">
           <Link href="/" className="mr-2">
             <Button variant="ghost" size="icon">
@@ -291,16 +303,45 @@ const MobileScanner = () => {
             </Button>
           </Link>
           <h1 className="text-lg font-bold">Mobile Scanner</h1>
+          {scanMode === 'inventory' && (
+            <Badge variant="outline" className="ml-2 py-0">
+              {isScanning ? "Scanning..." : "Ready"}
+            </Badge>
+          )}
         </div>
         
         <div className="flex items-center space-x-2">
           <Button 
             variant="outline" 
             size="icon" 
+            onClick={() => setIsFlashlightOn(prev => !prev)} 
+            disabled={isInitializing || isFrontCamera}
+            className={isFlashlightOn ? "bg-yellow-100 dark:bg-yellow-900/30" : ""}
+          >
+            {isFlashlightOn ? (
+              <FlashlightOff className="h-5 w-5" />
+            ) : (
+              <Flashlight className="h-5 w-5" />
+            )}
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="icon" 
             onClick={toggleCamera} 
             disabled={isInitializing}
+            className={isFrontCamera ? "bg-primary/10" : ""}
           >
             <Camera className="h-5 w-5" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowHistory(prev => !prev)}
+            className={showHistory ? "bg-primary/10" : ""}
+          >
+            <History className="h-5 w-5" />
           </Button>
         </div>
       </header>
@@ -479,7 +520,7 @@ const MobileScanner = () => {
                   <Button
                     variant={isScanning ? "destructive" : "default"}
                     onClick={isScanning ? stopScanning : startScanning}
-                    disabled={isInitializing || !currentLocation}
+                    disabled={isInitializing}
                     className="min-w-[120px]"
                   >
                     {isScanning ? (
@@ -498,10 +539,18 @@ const MobileScanner = () => {
           </Tabs>
           
           {/* Scan History */}
-          {scanHistory.length > 0 && (
-            <Card>
-              <CardHeader className="p-4 pb-2">
+          {scanHistory.length > 0 && showHistory && (
+            <Card className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <CardHeader className="p-4 pb-2 flex justify-between items-center">
                 <CardTitle className="text-lg">Recent Scans</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setScanHistory([])}
+                  className="h-8 px-2"
+                >
+                  Clear
+                </Button>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="divide-y">
@@ -511,7 +560,13 @@ const MobileScanner = () => {
                         {scan.item ? (
                           // Inventory item scan
                           <>
-                            <div className="font-medium">{scan.item.title}</div>
+                            <div className="font-medium flex items-center">
+                              <Package className="h-4 w-4 mr-1 text-primary" />
+                              {scan.item.title}
+                              <Badge variant="outline" className="ml-2 text-xs">
+                                {scan.item.status}
+                              </Badge>
+                            </div>
                             <div className="text-sm text-muted-foreground">
                               {scan.code} ({scan.type})
                             </div>
@@ -520,26 +575,41 @@ const MobileScanner = () => {
                               <span className="text-xs text-muted-foreground">{scan.item.sku} - ${scan.item.price}</span>
                             </div>
                           </>
-                        ) : scan.checkinTime ? (
-                          // Employee check-in
+                        ) : scan.employeeId ? (
+                          // Employee action
                           <>
-                            <div className="font-medium">Employee Check-in</div>
+                            <div className="font-medium flex items-center">
+                              <UserCheck className="h-4 w-4 mr-1 text-blue-500" />
+                              Employee Action
+                              {scan.actionType === 'intake' ? (
+                                <Badge variant="secondary" className="ml-2 text-xs">Intake</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="ml-2 text-xs">Fulfillment</Badge>
+                              )}
+                            </div>
                             <div className="text-sm text-muted-foreground">
                               {scan.code} ({scan.type})
                             </div>
                             <div className="mt-1 flex items-center">
-                              <MapPin className="h-3 w-3 text-blue-500 mr-1" />
+                              <User className="h-3 w-3 text-blue-500 mr-1" />
                               <span className="text-xs text-muted-foreground">
-                                {scan.location} - {scan.checkinTime.toLocaleTimeString()}
+                                ID: {scan.employeeId}
+                                {scan.timestamp && ` - ${new Date(scan.timestamp).toLocaleTimeString()}`}
                               </span>
                             </div>
                           </>
                         ) : (
                           // Unknown scan
                           <>
-                            <div className="font-medium">Unknown Item</div>
+                            <div className="font-medium flex items-center">
+                              <XCircle className="h-4 w-4 mr-1 text-red-500" />
+                              Unknown Item
+                            </div>
                             <div className="text-sm text-muted-foreground">
                               {scan.code} ({scan.type})
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              Not found in inventory
                             </div>
                           </>
                         )}
@@ -547,7 +617,10 @@ const MobileScanner = () => {
                       
                       {scan.item && (
                         <Link href={`/inventory/${scan.item.id}`}>
-                          <Button size="sm" variant="outline">View</Button>
+                          <Button size="sm" variant="outline" className="h-8 px-3">
+                            <ClipboardList className="h-3.5 w-3.5 mr-1" />
+                            View
+                          </Button>
                         </Link>
                       )}
                     </div>
