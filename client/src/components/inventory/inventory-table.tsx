@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Edit, MoreHorizontal, Trash2, Eye, QrCode, BarCode, ListFilter, ArrowUpDown } from 'lucide-react';
+import { Edit, MoreHorizontal, Trash2, Eye, QrCode, Barcode, ListFilter, ArrowUpDown } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -146,7 +146,7 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
                       <DropdownMenuItem onClick={() => {
                         // Generate barcode function
                       }}>
-                        <BarCode className="mr-2 h-4 w-4" />
+                        <Barcode className="mr-2 h-4 w-4" />
                         Print Barcode
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => {
