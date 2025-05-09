@@ -84,17 +84,45 @@ export async function processProductImage(
     const analysisResults = await analyzeProductImage(imageBase64);
     console.log('OpenAI analysis complete with results:', Object.keys(analysisResults));
     
-    // Create a placeholder image URL
-    // In a real application, we would upload the image to a storage service
-    const mockImageHash = crypto.createHash('md5').update(imageBase64.substring(0, 100)).digest('hex');
-    const mockImageUrl = `https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&h=400`;
-    console.log('Using placeholder image URL for demonstration');
+    // Store the image in the temp directory and use the URL path
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+    const hash = crypto.createHash('md5').update(imageBase64.substring(0, 100)).digest('hex');
+    const filename = `image-${hash}.jpg`;
+    
+    // Use our image processor to create and store the image
+    const tempDir = 'temp';
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Ensure temp directory exists
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    const imagePath = path.join(tempDir, filename);
+    const thumbnailPath = path.join(tempDir, `thumb-${filename}`);
+    
+    // Write the original image
+    await fs.promises.writeFile(imagePath, imageBuffer);
+    
+    // Create a thumbnail version
+    const sharp = require('sharp');
+    const thumbnailBuffer = await sharp(imageBuffer)
+      .resize(200, 200, { fit: 'inside' })
+      .toBuffer();
+    
+    // Write the thumbnail
+    await fs.promises.writeFile(thumbnailPath, thumbnailBuffer);
+    
+    // Create URLs for the images
+    const originalImageUrl = `/temp/${filename}`;
+    const processedImageUrl = `/temp/thumb-${filename}`;
     
     // Store the enhanced analysis results with better data validation and type handling
     const analysisData: InsertImageAnalysis = {
       userId,
-      originalImageUrl: mockImageUrl,
-      processedImageUrl: mockImageUrl,
+      originalImageUrl: originalImageUrl,
+      processedImageUrl: processedImageUrl,
       detectedItem: analysisResults.title || "Unknown Item",
       suggestedTitle: analysisResults.title || "Unknown Item",
       suggestedDescription: analysisResults.description || "No description available",
