@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import * as path from "path";
 import fs from "fs/promises";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import {
   processProductImage,
@@ -1454,6 +1455,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Set up WebSocket server for real-time inventory updates
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  wss.on('connection', (ws) => {
+    console.log('WebSocket client connected');
+    
+    // Send welcome message
+    ws.send(JSON.stringify({
+      type: 'connection',
+      message: 'Connected to MrLister WebSocket server'
+    }));
+    
+    // Handle messages from clients
+    ws.on('message', (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log('Received message:', data);
+        
+        // Process different message types
+        switch (data.type) {
+          case 'subscribe':
+            handleSubscribe(ws, data);
+            break;
+          case 'inventory_update':
+            broadcastInventoryUpdate(ws, data);
+            break;
+          default:
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: 'Unknown message type'
+            }));
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+        ws.send(JSON.stringify({
+          type: 'error',
+          message: 'Invalid message format'
+        }));
+      }
+    });
+    
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+    });
+  });
+  
+  // Handle client subscription to updates
+  function handleSubscribe(ws: WebSocket, data: any) {
+    const { channel } = data;
+    // In a real implementation, add this connection to a channel map
+    ws.send(JSON.stringify({
+      type: 'subscription_confirmed',
+      channel: channel
+    }));
+  }
+  
+  // Broadcast inventory updates to all connected clients
+  function broadcastInventoryUpdate(sourceWs: WebSocket, data: any) {
+    wss.clients.forEach((client) => {
+      if (client !== sourceWs && client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          type: 'inventory_update',
+          data: data.data
+        }));
+      }
+    });
+  }
 
   return httpServer;
 }
