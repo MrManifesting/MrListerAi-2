@@ -77,13 +77,18 @@ export async function processProductImage(
   results: any;
 }> {
   try {
-    // Call OpenAI to analyze the image
-    const analysisResults = await analyzeProductImage(imageBase64);
+    console.log(`Starting image analysis for user ${userId} with image data length: ${imageBase64.length}`);
     
-    // Create a mock image URL for demo purposes
+    // Call OpenAI to analyze the image
+    console.log('Calling OpenAI for image analysis...');
+    const analysisResults = await analyzeProductImage(imageBase64);
+    console.log('OpenAI analysis complete with results:', Object.keys(analysisResults));
+    
+    // Create a placeholder image URL
     // In a real application, we would upload the image to a storage service
     const mockImageHash = crypto.createHash('md5').update(imageBase64.substring(0, 100)).digest('hex');
-    const mockImageUrl = `https://storage.example.com/${mockImageHash}.jpg`;
+    const mockImageUrl = `https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&h=400`;
+    console.log('Using placeholder image URL for demonstration');
     
     // Store the enhanced analysis results
     const analysisData: InsertImageAnalysis = {
@@ -112,7 +117,9 @@ export async function processProductImage(
       status: 'completed'
     };
     
+    console.log('Storing analysis data in database...');
     const analysis = await storage.createImageAnalysis(analysisData);
+    console.log(`Analysis stored with ID: ${analysis.id}`);
     
     return {
       analysisId: analysis.id,
@@ -120,7 +127,11 @@ export async function processProductImage(
     };
   } catch (error) {
     console.error('Error processing product image:', error);
-    throw new Error('Failed to process product image');
+    // Add stack trace for better debugging
+    if (error instanceof Error) {
+      console.error('Stack trace:', error.stack);
+    }
+    throw new Error('Failed to process product image: ' + (error instanceof Error ? error.message : String(error)));
   }
 }
 

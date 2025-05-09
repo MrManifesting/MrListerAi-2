@@ -1,7 +1,31 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Check if OpenAI API key is available
+if (!process.env.OPENAI_API_KEY) {
+  console.error("OPENAI_API_KEY is not set in environment variables");
+  throw new Error("OpenAI API key is missing");
+}
+
+// Log that we're initializing OpenAI client
+console.log("Initializing OpenAI client with API key");
+
+// The newest OpenAI model is "gpt-4o" which was released May 13, 2024
+// Do not change this unless explicitly requested by the user
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY,
+  timeout: 60000, // 60 second timeout for requests
+  maxRetries: 3   // Retry up to 3 times on failure
+});
+
+// Test OpenAI connection by making a simple API call
+(async () => {
+  try {
+    await openai.models.list();
+    console.log("Successfully connected to OpenAI API");
+  } catch (error) {
+    console.error("Error connecting to OpenAI API:", error);
+  }
+})();
 
 // Function to analyze product images and return information
 export async function analyzeProductImage(base64Image: string): Promise<{
@@ -152,7 +176,8 @@ export async function generateProductDescription(itemDetails: {
       max_tokens: 250
     });
 
-    return response.choices[0].message.content.trim();
+    const content = response.choices[0].message.content;
+    return content ? content.trim() : "";
   } catch (error) {
     console.error("Error generating product description:", error);
     return `${itemDetails.title} in ${itemDetails.condition} condition. ${itemDetails.features ? itemDetails.features.join(". ") : ""}`;
@@ -198,7 +223,16 @@ export async function analyzePricingStrategy(itemDetails: {
       response_format: { type: "json_object" }
     });
 
-    const result = JSON.parse(response.choices[0].message.content);
+    let result;
+    try {
+      const content = response.choices[0].message.content || "{}";
+      result = JSON.parse(content);
+      console.log("Successfully parsed OpenAI pricing strategy response:", Object.keys(result));
+    } catch (parseError) {
+      console.error("Error parsing OpenAI pricing strategy response as JSON:", parseError);
+      console.log("Raw response content:", response.choices[0].message.content);
+      result = {};
+    }
     
     return {
       suggestedPrice: parseFloat(result.suggestedPrice) || ((itemDetails.currentPriceRange.min + itemDetails.currentPriceRange.max) / 2),
