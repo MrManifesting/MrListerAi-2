@@ -8,13 +8,13 @@ packages = ["openai"]
 
 [deployment]
 deploymentTarget = "gce"
-build = ["sh", "-c", "npm ci --omit=dev --no-audit --prefer-offline && node cleanup.js && NODE_ENV=production npm run build"]
+build = ["sh", "-c", "npm ci && node cleanup.js && NODE_ENV=production npm run build"]
 run = ["sh", "-c", "NODE_ENV=production node --max-old-space-size=512 dist/index.js"]
 
 [env]
 REPLIT_DISABLE_PACKAGE_LAYER = "0"
-REPLIT_KEEP_PACKAGE_DEV_DEPENDENCIES = "0"
-REPLIT_BUILD_INCLUDE_DEV_DEPS = "0"
+REPLIT_KEEP_PACKAGE_DEV_DEPENDENCIES = "1"
+REPLIT_BUILD_INCLUDE_DEV_DEPS = "1"
 
 [[ports]]
 localPort = 5000
@@ -116,6 +116,31 @@ args = "NODE_ENV=production npm run build"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "rm -rf node_modules/.cache client/.vite"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production node --max-old-space-size=512 dist/index.js"
+
+[[workflows.workflow]]
+name = "Optimized Deployment Test"
+author = 30752682
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "export NODE_OPTIONS=--max_old_space_size=3072"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm ci"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node cleanup.js"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production npm run build"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
