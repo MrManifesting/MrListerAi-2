@@ -12,7 +12,28 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Loader2, Scan, ArrowLeft, ZapOff, Camera, ShieldCheck, Briefcase, Package, UserCheck, MapPin } from "lucide-react";
+import { 
+  Loader2, 
+  Scan, 
+  ArrowLeft, 
+  ZapOff, 
+  Camera, 
+  ShieldCheck, 
+  Package, 
+  UserCheck, 
+  MapPin,
+  ArrowDownToLine,
+  ArrowUpFromLine, 
+  User,
+  ClipboardList
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 
 interface ScannedItem {
   id: number;
@@ -44,7 +65,8 @@ const MobileScanner = () => {
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [scanMode, setScanMode] = useState<'inventory' | 'employee'>('inventory');
-  const [currentLocation, setCurrentLocation] = useState<string>('');
+  const [actionType, setActionType] = useState<'intake' | 'fulfillment'>('intake');
+  const [lastScannedInventoryItem, setLastScannedInventoryItem] = useState<ScannedItem | null>(null);
   
   // Query to get item details by barcode
   // Employee ID tracking mutation
@@ -177,11 +199,11 @@ const MobileScanner = () => {
             // Extract employee ID
             const employeeId = code.data.split(':')[1];
             
-            // Track employee action
+            // Track employee action with the selected action type
             trackEmployeeActionMutation.mutate({
               employeeId,
-              actionType: 'intake', // Default to intake, could add a toggle in UI for fulfillment
-              inventoryItemId: undefined // Could be set when scanning an inventory item first
+              actionType: actionType,
+              inventoryItemId: lastScannedInventoryItem?.id
             });
           } else {
             toast({
@@ -210,7 +232,7 @@ const MobileScanner = () => {
     getItemByBarcodeMutation, 
     trackEmployeeActionMutation,
     scanMode,
-    currentLocation,
+    actionType,
     toast
   ]);
 
@@ -369,26 +391,52 @@ const MobileScanner = () => {
             <TabsContent value="employee">
               <Card className="overflow-hidden">
                 <CardHeader className="p-4">
-                  <CardTitle className="text-lg">Employee Check-in</CardTitle>
+                  <CardTitle className="text-lg">Employee ID Scanner</CardTitle>
                   <CardDescription>
-                    Scan QR codes for employee check-ins
+                    Scan employee ID to associate with inventory actions
                   </CardDescription>
                 </CardHeader>
                 
                 <CardContent className="p-4">
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="location">Location</Label>
-                      <div className="flex items-center mt-1">
-                        <MapPin className="h-4 w-4 text-muted-foreground mr-2" />
-                        <Input 
-                          id="location"
-                          placeholder="Enter location name"
-                          value={currentLocation}
-                          onChange={(e) => setCurrentLocation(e.target.value)}
-                        />
-                      </div>
+                      <Label htmlFor="actionType">Action Type</Label>
+                      <Select defaultValue="intake" onValueChange={(value) => setActionType(value as 'intake' | 'fulfillment')}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select action type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="intake">
+                            <div className="flex items-center">
+                              <ArrowDownToLine className="mr-2 h-4 w-4" />
+                              <span>Intake</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="fulfillment">
+                            <div className="flex items-center">
+                              <ArrowUpFromLine className="mr-2 h-4 w-4" />
+                              <span>Fulfillment</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                    
+                    {lastScannedInventoryItem && (
+                      <div className="mt-2 p-3 border rounded-md bg-muted/30">
+                        <div className="font-medium">Selected Item:</div>
+                        <div className="text-sm">{lastScannedInventoryItem.title}</div>
+                        <div className="text-xs text-muted-foreground">{lastScannedInventoryItem.sku}</div>
+                      </div>
+                    )}
+                    
+                    {!lastScannedInventoryItem && (
+                      <div className="mt-2 p-3 border rounded-md bg-muted/30 border-dashed">
+                        <div className="text-sm text-muted-foreground text-center">
+                          Scan an inventory item first (optional)
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
                 
