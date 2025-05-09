@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Marketplace } from '../../shared/schema';
+import { Marketplace } from '@shared/schema';
 
 // Define specific types for marketplace connections
 type ShopifyConnectionParams = {

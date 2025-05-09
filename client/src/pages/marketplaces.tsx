@@ -116,7 +116,7 @@ export default function Marketplaces() {
     marketplaces,
     isLoading,
     connectMarketplace,
-    syncAllMarketplaces,
+    syncMarketplaces: syncAllMarketplaces,
     disconnectMarketplace,
     generateCSVExport,
     downloadCSVExport,
