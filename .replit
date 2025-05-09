@@ -8,7 +8,7 @@ packages = ["openai"]
 
 [deployment]
 deploymentTarget = "autoscale"
-build = ["sh", "-c", "npm ci --omit=dev && NODE_ENV=production npm run build"]
+build = ["sh", "-c", "npm ci --omit=dev --no-audit --prefer-offline && node cleanup.js && NODE_ENV=production npm run build"]
 run = ["sh", "-c", "NODE_ENV=production node --max-old-space-size=512 dist/index.js"]
 
 [env]
@@ -91,6 +91,31 @@ args = "node cleanup.js"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "NODE_ENV=production npm run build"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production node --max-old-space-size=512 dist/index.js"
+
+[[workflows.workflow]]
+name = "Optimized Deployment"
+author = 30752682
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm ci --omit=dev --no-audit --prefer-offline"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node cleanup.js"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production npm run build"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "rm -rf node_modules/.cache client/.vite"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
