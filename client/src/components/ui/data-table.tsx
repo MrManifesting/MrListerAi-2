@@ -104,16 +104,16 @@ export function DataTable<TData, TValue>({
               className="relative inline-block text-left w-full sm:w-auto"
             >
               <Select
-                value={(table.getColumn(filter.key)?.getFilterValue() as string) ?? ""}
+                value={(table.getColumn(filter.key)?.getFilterValue() as string) ?? "all"}
                 onValueChange={(value) =>
-                  table.getColumn(filter.key)?.setFilterValue(value)
+                  table.getColumn(filter.key)?.setFilterValue(value === "all" ? "" : value)
                 }
               >
                 <SelectTrigger className="min-w-[180px]">
                   <SelectValue placeholder={filter.placeholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   {filter.options.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
