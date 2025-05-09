@@ -30,8 +30,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-// Use the type from the database schema
-import type { InventoryItem } from '@shared/schema';
+// Use the types from the database schema
+import type { InventoryItem, InventoryMetadata } from '@shared/schema';
 
 interface InventoryTableProps {
   items: InventoryItem[];
@@ -58,13 +58,11 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
 
   const handleDelete = (id: number) => {
     if (confirm('Are you sure you want to delete this item?')) {
-      // Call the deleteInventoryItem mutation
-      deleteInventoryItem.mutate(id, {
-        onSuccess: () => {
-          // Notify other clients that the inventory has changed
-          sendInventoryUpdate({ action: 'delete', itemId: id });
-        },
-      });
+      // Call the deleteInventoryItem mutation directly (it's already a mutation object)
+      deleteInventoryItem.mutate(id);
+      
+      // Notify other clients that the inventory has changed
+      sendInventoryUpdate({ action: 'delete', itemId: id });
     }
   };
 
@@ -235,9 +233,9 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <div className="p-2 border rounded-md text-center">
                     <p className="text-xs text-muted-foreground mb-1">Barcode</p>
-                    {selectedItem.metadata?.barcode ? (
+                    {selectedItem.metadata && (selectedItem.metadata as InventoryMetadata).barcode ? (
                       <img
-                        src={selectedItem.metadata.barcode}
+                        src={(selectedItem.metadata as InventoryMetadata).barcode}
                         alt="Barcode"
                         className="h-16 w-full object-contain"
                         onError={() => {
@@ -250,9 +248,9 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
                   </div>
                   <div className="p-2 border rounded-md text-center">
                     <p className="text-xs text-muted-foreground mb-1">QR Code</p>
-                    {selectedItem.metadata?.qrCode ? (
+                    {selectedItem.metadata && (selectedItem.metadata as InventoryMetadata).qrCode ? (
                       <img
-                        src={selectedItem.metadata.qrCode}
+                        src={(selectedItem.metadata as InventoryMetadata).qrCode}
                         alt="QR Code"
                         className="h-16 w-full object-contain"
                         onError={() => {
