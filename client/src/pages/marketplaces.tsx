@@ -167,21 +167,11 @@ export default function Marketplaces() {
 
   // Handle connect marketplace form submission
   const onSubmit = (values: z.infer<typeof marketplaceFormSchema>) => {
-    let connectData = {
-      marketplaceName: values.marketplaceName,
-      authCode: values.authCode,
-    };
-
-    // Add shopUrl if it's a Shopify connection
-    if (values.marketplaceName === "Shopify" && "shopUrl" in values) {
-      connectData = {
-        ...connectData,
-        shopUrl: values.shopUrl,
-      };
-    }
-
+    // The form data is already correctly typed based on the marketplaceName
+    // thanks to the discriminated union in the schema
+    
     connectMarketplace.mutate(
-      connectData,
+      values, // Values already have the correct shape thanks to the discriminated union
       {
         onSuccess: () => {
           setShowConnectModal(false);
