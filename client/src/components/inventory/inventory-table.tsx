@@ -37,7 +37,7 @@ interface InventoryTableProps {
 
 export function InventoryTable({ items, isLoading }: InventoryTableProps) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const { deleteItem } = useInventory();
+  const { deleteItem: deleteItemMutation } = useInventory();
   const { sendInventoryUpdate } = useWebSocketContext();
 
   const formatDate = (date: Date) => {
@@ -53,7 +53,7 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
 
   const handleDelete = (id: number) => {
     if (confirm('Are you sure you want to delete this item?')) {
-      deleteItem(id, {
+      deleteItemMutation(id, {
         onSuccess: () => {
           // Notify other clients that the inventory has changed
           sendInventoryUpdate({ action: 'delete', itemId: id });
@@ -88,7 +88,7 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[100px]">Image</TableHead>
+              <TableHead className="w-[120px]">Image</TableHead>
               <TableHead>SKU</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Category</TableHead>
@@ -102,17 +102,27 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
             {items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>
-                  {item.thumbnailUrl ? (
-                    <img
-                      src={item.thumbnailUrl}
-                      alt={item.title}
-                      className="h-12 w-12 rounded-md object-cover"
-                    />
-                  ) : (
-                    <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground">
-                      No image
-                    </div>
-                  )}
+                  <div className="cursor-pointer" onClick={() => setSelectedItem(item)}>
+                    {item.thumbnailUrl ? (
+                      <img
+                        src={item.thumbnailUrl}
+                        alt={item.title}
+                        className="h-16 w-16 rounded-md object-cover border-2 border-border hover:border-primary transition-all duration-200 shadow-sm hover:shadow-md"
+                      />
+                    ) : (
+                      item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.title}
+                          className="h-16 w-16 rounded-md object-cover border-2 border-border hover:border-primary transition-all duration-200 shadow-sm hover:shadow-md"
+                        />
+                      ) : (
+                        <div className="h-16 w-16 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground border-2 border-border hover:border-primary transition-all duration-200">
+                          No image
+                        </div>
+                      )
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="font-mono text-xs">{item.sku}</TableCell>
                 <TableCell className="font-medium">{item.title}</TableCell>
@@ -185,11 +195,25 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <img
-                  src={selectedItem.imageUrl || '/placeholder-image.jpg'}
-                  alt={selectedItem.title}
-                  className="w-full h-auto rounded-md"
-                />
+                <div className="overflow-hidden rounded-lg border-2 border-border shadow-md">
+                  {selectedItem.imageUrl ? (
+                    <img
+                      src={selectedItem.imageUrl}
+                      alt={selectedItem.title}
+                      className="w-full h-auto object-cover aspect-square"
+                    />
+                  ) : selectedItem.thumbnailUrl ? (
+                    <img
+                      src={selectedItem.thumbnailUrl}
+                      alt={selectedItem.title}
+                      className="w-full h-auto object-cover aspect-square"
+                    />
+                  ) : (
+                    <div className="w-full h-64 bg-muted flex items-center justify-center">
+                      <p className="text-muted-foreground">No image available</p>
+                    </div>
+                  )}
+                </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <div className="p-2 border rounded-md text-center">
                     <p className="text-xs text-muted-foreground mb-1">Barcode</p>
