@@ -1,0 +1,14 @@
+
+# Exclude development files and large directories
+node_modules/
+.git/
+temp/
+*.log
+*.test.ts
+*.test.js
+__tests__/
+coverage/
+.vscode/
+.idea/
+# Temporary image processing files
+/tmp/

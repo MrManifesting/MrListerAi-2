@@ -159,3 +159,38 @@ async function run() {
 }
 
 run().catch(console.error);
+import fs from 'fs';
+import path from 'path';
+
+// Directories to clean up
+const directoriesToClean = [
+  'temp',
+  '/tmp/app-temp',
+  'dist/temp'
+];
+
+// Execute cleanup
+directoriesToClean.forEach(dir => {
+  try {
+    if (fs.existsSync(dir)) {
+      console.log(`Cleaning directory: ${dir}`);
+      const files = fs.readdirSync(dir);
+      
+      files.forEach(file => {
+        const filePath = path.join(dir, file);
+        try {
+          fs.unlinkSync(filePath);
+          console.log(`Deleted: ${filePath}`);
+        } catch (err) {
+          console.error(`Failed to delete ${filePath}:`, err);
+        }
+      });
+    } else {
+      console.log(`Directory doesn't exist, skipping: ${dir}`);
+    }
+  } catch (err) {
+    console.error(`Error processing directory ${dir}:`, err);
+  }
+});
+
+console.log('Cleanup completed');

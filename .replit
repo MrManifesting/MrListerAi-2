@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "postgresql-16", "nodejs-with-prybar-18"]
+modules = ["nodejs-20", "web", "postgresql-16"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
@@ -8,20 +8,20 @@ packages = ["openai"]
 
 [deployment]
 deploymentTarget = "autoscale"
-build = ["sh", "-c", "npm ci && NODE_ENV=production npm run build"]
+build = ["sh", "-c", "npm ci --omit=dev && NODE_ENV=production npm run build"]
 run = ["sh", "-c", "NODE_ENV=production node --max-old-space-size=512 dist/index.js"]
 
 [env]
-REPLIT_DISABLE_PACKAGE_LAYER = "1"
-REPLIT_KEEP_PACKAGE_DEV_DEPENDENCIES = "1"
-REPLIT_BUILD_INCLUDE_DEV_DEPS = "1"
+REPLIT_DISABLE_PACKAGE_LAYER = "0"
+REPLIT_KEEP_PACKAGE_DEV_DEPENDENCIES = "0"
+REPLIT_BUILD_INCLUDE_DEV_DEPS = "0"
 
 [[ports]]
 localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "Build and Run Production"
+runButton = "Optimized Build and Deploy"
 
 [[workflows.workflow]]
 name = "Project"
@@ -66,6 +66,27 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm ci"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production npm run build"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production node --max-old-space-size=512 dist/index.js"
+
+[[workflows.workflow]]
+name = "Optimized Build and Deploy"
+author = 30752682
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm ci --omit=dev"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node cleanup.js"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
