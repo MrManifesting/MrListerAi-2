@@ -491,7 +491,12 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({
                           onClick={removeBackground}
                           disabled={isProcessing}
                         >
-                          {isProcessing ? 'Processing...' : 'Remove Background'}
+                          {isProcessing ? (
+                            <span className="flex items-center">
+                              <span className="animate-spin-slow mr-2 h-4 w-4 border-2 border-background border-t-primary-foreground rounded-full"></span>
+                              Processing...
+                            </span>
+                          ) : 'Remove Background'}
                         </Button>
                         <p className="text-xs text-muted-foreground mt-2">
                           Automatically removes the background from the image, ideal for product photos.
@@ -499,12 +504,19 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({
                       </CardContent>
                     </Card>
                     
-                    <Card>
+                    <Card variant="elevated" className="hover:shadow-lg transition-all duration-300">
                       <CardContent className="pt-6">
-                        <h3 className="font-medium mb-4">Image Optimization</h3>
+                        <h3 className="font-medium mb-4 flex items-center">
+                          <span className="mr-2 bg-chart-2/10 text-chart-2 p-1 rounded">
+                            <ImagePlus className="h-4 w-4" />
+                          </span>
+                          Image Optimization
+                        </h3>
                         <div className="mb-4">
                           <div className="flex justify-between mb-2">
-                            <Label htmlFor="quality">Quality: {quality}%</Label>
+                            <Label htmlFor="quality" className="flex items-center">
+                              Quality: <span className="ml-1 font-semibold text-primary">{quality}%</span>
+                            </Label>
                           </div>
                           <Slider
                             id="quality"
@@ -513,14 +525,25 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({
                             step={1}
                             value={[quality]}
                             onValueChange={(value) => setQuality(value[0])}
+                            className="py-1"
                           />
+                          <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                            <span>Smaller file</span>
+                            <span>Higher quality</span>
+                          </div>
                         </div>
                         <Button 
+                          variant="gradient"
                           className="w-full" 
                           onClick={optimizeImage}
                           disabled={isProcessing}
                         >
-                          {isProcessing ? 'Processing...' : 'Optimize Image'}
+                          {isProcessing ? (
+                            <span className="flex items-center">
+                              <span className="animate-spin-slow mr-2 h-4 w-4 border-2 border-background border-t-primary-foreground rounded-full"></span>
+                              Processing...
+                            </span>
+                          ) : 'Optimize Image'}
                         </Button>
                         <p className="text-xs text-muted-foreground mt-2">
                           Reduces file size while maintaining visual quality.

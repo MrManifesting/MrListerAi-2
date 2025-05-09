@@ -1,272 +1,180 @@
-import { useState, useCallback } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Loader2, Upload, ImagePlus, FileX, Check } from "lucide-react";
-import { useDropzone } from "react-dropzone";
+import { useRef, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ImagePlus, Upload, X, CheckCircle2 } from 'lucide-react';
 
 interface ImageUploadProps {
-  onAnalysisComplete: (analysisId: number, results: any) => void;
+  onUpload: (file: File) => void;
+  maxSize?: number; // in MB
+  acceptedFormats?: string[];
 }
 
-export function ImageUpload({ onAnalysisComplete }: ImageUploadProps) {
+export function ImageUpload({ 
+  onUpload, 
+  maxSize = 5, // Default 5MB
+  acceptedFormats = ['image/jpeg', 'image/png', 'image/webp'] 
+}: ImageUploadProps) {
   const { toast } = useToast();
-  const [processingFiles, setProcessingFiles] = useState<File[]>([]);
-  const [currentFileIndex, setCurrentFileIndex] = useState(0);
-  const [fileProgress, setFileProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-  // Analyze image mutation
-  const analyzeMutation = useMutation({
-    mutationFn: async (imageBase64: string) => {
-      console.log(`Sending image with base64 length: ${imageBase64.length}`);
-      
-      // Check if base64 has data URL prefix or not
-      const hasPrefix = imageBase64.startsWith('data:');
-      console.log(`Base64 has data URL prefix: ${hasPrefix}, prefix check:`, imageBase64.substring(0, Math.min(30, imageBase64.length)));
-      // Add timeout to handle long-running API calls
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
-      
-      try {
-        const response = await apiRequest(
-          "POST", 
-          "/api/analyze/image", 
-          { imageBase64 },
-          { signal: controller.signal }
-        );
-        clearTimeout(timeoutId);
-        return response.json();
-      } catch (error) {
-        clearTimeout(timeoutId);
-        if (error.name === 'AbortError') {
-          throw new Error('Image analysis request timed out. Please try again with a smaller image.');
-        }
-        throw error;
-      }
-    },
-    onSuccess: (data) => {
-      console.log("Analysis complete with data:", { analysisId: data.analysisId });
-      
-      if (!data.analysisId || !data.results) {
-        console.error("Invalid response data:", data);
-        toast({
-          title: "Analysis returned invalid data",
-          description: "There was an issue with the analysis results. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      onAnalysisComplete(data.analysisId, data.results);
-      
-      // Update progress
-      setFileProgress((currentFileIndex + 1) / processingFiles.length * 100);
-      
-      // Process next file if available
-      setCurrentFileIndex((prev) => {
-        const nextIndex = prev + 1;
-        if (nextIndex < processingFiles.length) {
-          processFile(processingFiles[nextIndex]);
-          return nextIndex;
-        }
-        // All files processed
-        setProcessingFiles([]);
-        setFileProgress(100);
-        return 0;
-      });
-    },
-    onError: (error) => {
-      console.error("Image analysis error:", error);
-      
+  const handleFileChange = (file: File | null) => {
+    if (!file) return;
+
+    // Check file size
+    if (file.size > maxSize * 1024 * 1024) {
       toast({
-        title: "Analysis failed",
-        description: error.message || "There was an error analyzing your image. Please try again.",
-        variant: "destructive",
-      });
-      
-      // Process next file if available
-      setCurrentFileIndex((prev) => {
-        const nextIndex = prev + 1;
-        if (nextIndex < processingFiles.length) {
-          processFile(processingFiles[nextIndex]);
-          return nextIndex;
-        }
-        // All files processed even with errors
-        setProcessingFiles([]);
-        return 0;
-      });
-    },
-  });
-
-  // Convert file to base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        try {
-          const result = reader.result as string;
-          // Verify we have a proper data URL
-          if (!result || !result.includes('base64,')) {
-            reject(new Error('Invalid image data format'));
-            return;
-          }
-          
-          // Extract the base64 part without the data URL prefix
-          const base64 = result.split('base64,')[1];
-          if (!base64) {
-            reject(new Error('Could not extract base64 data from image'));
-            return;
-          }
-          
-          console.log(`Successfully extracted base64 data, length: ${base64.length}`);
-          resolve(base64);
-        } catch (error) {
-          console.error('Error processing file data:', error);
-          reject(error);
-        }
-      };
-      reader.onerror = (error) => {
-        console.error('FileReader error:', error);
-        reject(error);
-      };
-    });
-  };
-
-  // Process a single file
-  const processFile = async (file: File) => {
-    try {
-      const base64 = await fileToBase64(file);
-      analyzeMutation.mutate(base64);
-    } catch (error) {
-      toast({
-        title: "Error processing file",
-        description: "There was an error processing your image file.",
-        variant: "destructive",
-      });
-      
-      // Try next file
-      setCurrentFileIndex((prev) => {
-        const nextIndex = prev + 1;
-        if (nextIndex < processingFiles.length) {
-          processFile(processingFiles[nextIndex]);
-          return nextIndex;
-        }
-        setProcessingFiles([]);
-        return 0;
-      });
-    }
-  };
-
-  // Start processing uploaded files
-  const handleFilesUploaded = (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
-    
-    setProcessingFiles(acceptedFiles);
-    setCurrentFileIndex(0);
-    setFileProgress(0);
-    
-    // Start with the first file
-    processFile(acceptedFiles[0]);
-  };
-
-  // Configure dropzone
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    // Filter for image files under 10MB
-    const validFiles = acceptedFiles.filter(
-      file => file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024
-    );
-    
-    if (validFiles.length === 0) {
-      toast({
-        title: "Invalid files",
-        description: "Please upload image files (PNG, JPG, GIF) under 10MB.",
+        title: "File too large",
+        description: `Maximum file size is ${maxSize}MB`,
         variant: "destructive",
       });
       return;
     }
-    
-    if (validFiles.length !== acceptedFiles.length) {
-      toast({
-        title: "Some files were skipped",
-        description: "Only image files under 10MB are accepted.",
-      });
-    }
-    
-    handleFilesUploaded(validFiles);
-  }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif']
-    },
-    maxSize: 10 * 1024 * 1024, // 10MB
-  });
+    // Check file format
+    if (!acceptedFormats.includes(file.type)) {
+      toast({
+        title: "Invalid file format",
+        description: `Accepted formats: ${acceptedFormats.map(f => f.split('/')[1]).join(', ')}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreview(e.target?.result as string);
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
+
+    // Pass file to parent component
+    onUpload(file);
+
+    toast({
+      title: "Image uploaded",
+      description: "Your image has been successfully uploaded",
+      variant: "default",
+    });
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileChange(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const clearPreview = () => {
+    setPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   return (
-    <div>
-      <div
-        {...getRootProps()}
-        className={`upload-zone ${
-          isDragActive ? "border-primary bg-primary/5" : ""
-        } ${processingFiles.length > 0 ? "pointer-events-none" : ""}`}
-      >
-        <input {...getInputProps()} />
-        {processingFiles.length === 0 && (
-          <div className="space-y-3">
-            {isDragActive ? (
-              <Upload className="mx-auto h-10 w-10 text-primary" />
-            ) : (
-              <ImagePlus className="mx-auto h-10 w-10 text-gray-400" />
-            )}
-            <div className="flex flex-col items-center text-sm text-gray-600">
-              <span className="cursor-pointer font-medium text-primary hover:text-primary-dark">
-                Upload product images
-              </span>
-              <p className="pl-1">or drag and drop</p>
-            </div>
-            <p className="text-xs text-gray-500">
-              PNG, JPG, GIF up to 10MB
-            </p>
-          </div>
-        )}
-        
-        {processingFiles.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex flex-col items-center">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="mt-2 text-sm font-medium text-gray-900">
-                Analyzing {currentFileIndex + 1} of {processingFiles.length} images...
+    <Card variant="elevated" className="slide-up">
+      <CardContent className="p-6">
+        {!preview ? (
+          <div
+            className={`upload-zone ${dragActive ? 'border-primary bg-primary/10 scale-[1.01]' : ''} cursor-pointer`}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="flex flex-col items-center justify-center gap-3 py-4">
+              <div className={`rounded-full p-3 ${dragActive ? 'bg-primary/20' : 'bg-secondary'} transition-all duration-300`}>
+                <ImagePlus className={`h-8 w-8 ${dragActive ? 'text-primary' : 'text-muted-foreground'}`} />
+              </div>
+              <p className="font-medium text-lg">Click or drop image here</p>
+              <p className="text-sm text-muted-foreground">
+                Supports: {acceptedFormats.map(f => f.split('/')[1]).join(', ')}
               </p>
+              <p className="text-xs text-muted-foreground">
+                Maximum size: {maxSize}MB
+              </p>
+              <Button variant="gradient" size="lg" className="mt-2 font-medium">
+                <Upload className="mr-2 h-4 w-4" />
+                Select File
+              </Button>
             </div>
-            <Progress value={fileProgress} className="h-2 w-full max-w-md mx-auto" />
           </div>
-        )}
-      </div>
+        ) : (
+          <div className="relative rounded-lg overflow-hidden shadow-md fade-in">
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent z-10 pointer-events-none" />
+            <img 
+              src={preview} 
+              alt="Preview" 
+              className="w-full h-auto max-h-[300px] object-contain bg-black/5"
+            />
 
-      {processingFiles.length > 0 && (
-        <div className="mt-6 bg-blue-50 rounded-md p-4">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <Loader2 className="animate-spin h-5 w-5 text-blue-500" />
+            <div className="absolute top-3 right-3 flex gap-2 z-20">
+              <Button
+                variant="secondary"
+                size="icon-sm"
+                className="rounded-full shadow-lg bg-white/80 backdrop-blur-sm hover:bg-white/90"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (fileInputRef.current) fileInputRef.current.click();
+                }}
+              >
+                <Upload className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="destructive"
+                size="icon-sm"
+                className="rounded-full shadow-lg bg-white/80 backdrop-blur-sm hover:bg-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearPreview();
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-            <div className="ml-3 flex-1 md:flex md:justify-between">
-              <p className="text-sm text-blue-700">
-                AI is analyzing your products. This may take a minute...
-              </p>
-              <p className="mt-3 text-sm md:mt-0 md:ml-6">
-                <span className="font-medium text-blue-700">
-                  {currentFileIndex + 1} of {processingFiles.length}
-                </span>{" "}
-                <span className="text-blue-700">items processed</span>
-              </p>
+
+            <div className="absolute bottom-3 left-3 z-20">
+              <div className="bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full text-xs flex items-center gap-1.5 shadow-lg">
+                <CheckCircle2 className="h-3.5 w-3.5 text-chart-2" />
+                <span className="font-medium">Image ready for processing</span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files && e.target.files[0]) {
+              handleFileChange(e.target.files[0]);
+            }
+          }}
+          accept={acceptedFormats.join(',')}
+        />
+      </CardContent>
+    </Card>
   );
 }
