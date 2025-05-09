@@ -296,6 +296,10 @@ export class MemStorage implements IStorage {
       (user) => user.email.toLowerCase() === email.toLowerCase()
     );
   }
+  
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
 
   async createUser(userData: InsertUser): Promise<User> {
     const id = this.userId++;

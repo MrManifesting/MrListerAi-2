@@ -115,6 +115,7 @@ export const imageAnalysis = pgTable("image_analysis", {
   suggestedCondition: text("suggested_condition"),
   suggestedPrice: real("suggested_price"),
   marketPriceRange: jsonb("market_price_range"),
+  aiData: jsonb("ai_data"), // Store enhanced AI analysis data (brand, features, barcodes, etc.)
   status: text("status").notNull().default("pending"), // pending, completed, failed
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

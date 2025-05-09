@@ -85,7 +85,7 @@ export async function processProductImage(
     const mockImageHash = crypto.createHash('md5').update(imageBase64.substring(0, 100)).digest('hex');
     const mockImageUrl = `https://storage.example.com/${mockImageHash}.jpg`;
     
-    // Store the analysis results
+    // Store the enhanced analysis results
     const analysisData: InsertImageAnalysis = {
       userId,
       originalImageUrl: mockImageUrl,
@@ -97,6 +97,18 @@ export async function processProductImage(
       suggestedCondition: analysisResults.condition,
       suggestedPrice: analysisResults.suggestedPrice,
       marketPriceRange: analysisResults.priceRange,
+      // Include enhanced AI data for use in inventory item creation
+      aiData: {
+        brand: analysisResults.brand,
+        model: analysisResults.model,
+        features: analysisResults.features,
+        keywords: analysisResults.keywords,
+        detectedBarcode: analysisResults.detectedBarcode,
+        barcodeType: analysisResults.barcodeType,
+        dimensions: analysisResults.dimensions,
+        weight: analysisResults.weight,
+        materials: analysisResults.materials
+      },
       status: 'completed'
     };
     
