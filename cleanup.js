@@ -1,6 +1,7 @@
+
 // Cleanup script to reduce project size for deployment
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 // Directories to clean thoroughly
 const dirsToClean = [
