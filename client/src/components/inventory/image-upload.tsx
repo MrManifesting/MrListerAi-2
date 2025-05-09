@@ -102,12 +102,32 @@ export function ImageUpload({ onAnalysisComplete }: ImageUploadProps) {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => {
-        const result = reader.result as string;
-        // Extract the base64 part without the data URL prefix
-        const base64 = result.split(',')[1];
-        resolve(base64);
+        try {
+          const result = reader.result as string;
+          // Verify we have a proper data URL
+          if (!result || !result.includes('base64,')) {
+            reject(new Error('Invalid image data format'));
+            return;
+          }
+          
+          // Extract the base64 part without the data URL prefix
+          const base64 = result.split('base64,')[1];
+          if (!base64) {
+            reject(new Error('Could not extract base64 data from image'));
+            return;
+          }
+          
+          console.log(`Successfully extracted base64 data, length: ${base64.length}`);
+          resolve(base64);
+        } catch (error) {
+          console.error('Error processing file data:', error);
+          reject(error);
+        }
       };
-      reader.onerror = (error) => reject(error);
+      reader.onerror = (error) => {
+        console.error('FileReader error:', error);
+        reject(error);
+      };
     });
   };
 
