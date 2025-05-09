@@ -13,6 +13,7 @@ export default function Inventory() {
   const [activeTab, setActiveTab] = useState("inventory");
   const [showUpload, setShowUpload] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [completedAnalyses, setCompletedAnalyses] = useState<number[]>([]);
 
   // Get inventory data
   const { inventoryItems, isLoading } = useInventory();
@@ -21,6 +22,8 @@ export default function Inventory() {
   const { analyses, refetch: refetchAnalyses } = useImageAnalysis();
 
   const handleAnalysisComplete = (analysisId: number, results: any) => {
+    // Add new analysis to completed analyses list
+    setCompletedAnalyses(prev => [...prev, analysisId]);
     setAnalysisComplete(true);
     refetchAnalyses();
   };
