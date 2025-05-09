@@ -1308,7 +1308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Process the image using our AI service
-      const result = await processProductImage(imageBase64, req.user.id);
+      const result = await processProductImage(imageBase64, (req.user as any).id);
       
       // Return the analysis results
       res.json({
@@ -1332,7 +1332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
       
       // Get all analyses for the user from database
-      const analyses = await storage.getImageAnalysesByUser(req.user.id);
+      const analyses = await storage.getImageAnalysesByUser((req.user as any).id);
       
       res.json({
         success: true,
@@ -1357,7 +1357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Connect to marketplace and store in database
       const marketplace = await connectMarketplace(
-        req.user.id, 
+        (req.user as any).id, 
         marketplaceType, 
         credentials || {}
       );
@@ -1379,7 +1379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
       
       // Get all marketplaces for the user from database
-      const marketplaces = await storage.getMarketplacesByUser(req.user.id);
+      const marketplaces = await storage.getMarketplacesByUser((req.user as any).id);
       
       res.json({
         success: true,
@@ -1403,17 +1403,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get the marketplace if ID provided
-      let marketplace: Marketplace | undefined;
+      let marketplace: any;
       if (marketplaceId) {
         marketplace = await storage.getMarketplace(marketplaceId);
-        if (!marketplace || marketplace.userId !== req.user.id) {
+        if (!marketplace || marketplace.userId !== (req.user as any).id) {
           return res.status(404).json({ error: "Marketplace not found" });
         }
       }
       
       // Generate CSV file
       const csvResult = await generateMarketplaceCSVFile(
-        req.user.id,
+        (req.user as any).id,
         marketplaceType,
         marketplace?.id
       );
@@ -1421,7 +1421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         csvPath: csvResult.filePath,
-        itemCount: csvResult.itemCount,
+        fileName: csvResult.fileName,
         message: `Successfully generated CSV file for ${marketplaceType}`
       });
     } catch (error) {
@@ -1439,7 +1439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
       
       // Get inventory items for the user
-      const items = await storage.getInventoryItemsByUser(req.user.id);
+      const items = await storage.getInventoryItemsByUser((req.user as any).id);
       
       res.json({
         success: true,
