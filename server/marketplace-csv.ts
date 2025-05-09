@@ -1,5 +1,5 @@
 import { InventoryItem } from '@shared/schema';
-import fs from 'fs/promises';
+import * as fs from 'fs/promises';
 import path from 'path';
 
 interface MarketplaceCSVConfig {

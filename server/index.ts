@@ -10,7 +10,9 @@ app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // Create temp directory if it doesn't exist and serve static files
 import fs from "fs";
-const tempDir = path.join(process.cwd(), 'temp');
+const tempDir = process.env.NODE_ENV === 'production' 
+  ? path.join('/tmp', 'app-temp') 
+  : path.join(process.cwd(), 'temp');
 if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
 }
