@@ -16,6 +16,13 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Define interfaces for better type checking
+export interface InventoryMetadata {
+  barcode?: string;
+  qrCode?: string;
+  [key: string]: any;
+}
+
 // INVENTORY ITEMS
 export const inventoryItems = pgTable("inventory_items", {
   id: serial("id").primaryKey(),
@@ -36,7 +43,7 @@ export const inventoryItems = pgTable("inventory_items", {
   aiGenerated: boolean("ai_generated").default(false),
   aiData: jsonb("ai_data"),
   marketplaceData: jsonb("marketplace_data"),
-  metadata: jsonb("metadata"), // For barcodes, QR codes, and other item metadata
+  metadata: jsonb("metadata").$type<InventoryMetadata>(), // For barcodes, QR codes, and other item metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

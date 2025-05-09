@@ -41,8 +41,7 @@ interface InventoryTableProps {
 export function InventoryTable({ items, isLoading }: InventoryTableProps) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const { 
-    deleteItem,
-    isDeletingItem,
+    deleteInventoryItem,
   } = useInventory();
   const { sendInventoryUpdate } = useWebSocketContext();
 
@@ -59,7 +58,8 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
 
   const handleDelete = (id: number) => {
     if (confirm('Are you sure you want to delete this item?')) {
-      deleteItem(id, {
+      // Call the deleteInventoryItem mutation
+      deleteInventoryItem.mutate(id, {
         onSuccess: () => {
           // Notify other clients that the inventory has changed
           sendInventoryUpdate({ action: 'delete', itemId: id });
