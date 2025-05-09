@@ -89,6 +89,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             title: 'Inventory Updated',
             description: `An item was ${actionText} by another device`,
           });
+        } else if (data.type === 'connection') {
+          console.log('Connection confirmation:', data.message);
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
