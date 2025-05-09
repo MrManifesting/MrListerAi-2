@@ -51,10 +51,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkPeriod: 86400000, // prune expired entries every 24h
       }),
       cookie: {
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax"
+        sameSite: "lax",
+        path: "/"
       },
     })
   );
