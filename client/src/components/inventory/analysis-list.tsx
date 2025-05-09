@@ -92,7 +92,7 @@ export function AnalysisList({ analyses, onItemAdded }: AnalysisListProps) {
           <Card key={analysis.id} className="overflow-hidden">
             <div className="aspect-video w-full relative overflow-hidden">
               <img
-                src={analysis.imageUrl}
+                src={analysis.originalImageUrl}
                 alt={analysis.suggestedTitle || 'Product image'}
                 className="h-full w-full object-cover transition-all hover:scale-105"
               />
