@@ -6,6 +6,7 @@ interface InventoryUpdate {
   action: 'add' | 'update' | 'delete';
   itemId?: number;
   data?: any;
+  timestamp?: number; // Optional timestamp for tracking update times
 }
 
 interface WebSocketContextType {
@@ -69,13 +70,20 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         
         // Handle different message types
         if (data.type === 'inventory_update') {
-          setLastInventoryUpdate(data.payload);
+          // Make sure payload always has a timestamp
+          const payload = {
+            ...data.payload,
+            timestamp: data.payload.timestamp || Date.now()
+          };
+          
+          setLastInventoryUpdate(payload);
+          
           const actionMap = {
             add: 'added',
             update: 'updated',
             delete: 'deleted',
           };
-          const actionText = actionMap[data.payload.action as keyof typeof actionMap] || 'modified';
+          const actionText = actionMap[payload.action as keyof typeof actionMap] || 'modified';
           
           toast({
             title: 'Inventory Updated',
@@ -101,12 +109,18 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   // Function to send inventory updates
   const sendInventoryUpdate = (update: InventoryUpdate) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
+      // Ensure the update always has a timestamp
+      const updatedPayload = {
+        ...update,
+        timestamp: update.timestamp || Date.now()
+      };
+      
       const message = {
         type: 'inventory_update',
-        payload: update,
+        payload: updatedPayload,
       };
       socket.send(JSON.stringify(message));
-      console.log('Sent inventory update via WebSocket:', update);
+      console.log('Sent inventory update via WebSocket:', updatedPayload);
     } else {
       console.warn('Cannot send inventory update: WebSocket not connected');
     }
