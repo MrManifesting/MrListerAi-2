@@ -521,44 +521,74 @@ export class DatabaseStorage implements IStorage {
 
   // Marketplace Methods
   async getMarketplace(id: number): Promise<Marketplace | undefined> {
-    return this.marketplaces.get(id);
+    try {
+      const [marketplace] = await db
+        .select()
+        .from(marketplaces)
+        .where(eq(marketplaces.id, id));
+      return marketplace;
+    } catch (error) {
+      console.error("Error getting marketplace:", error);
+      return undefined;
+    }
   }
 
   async getMarketplacesByUser(userId: number): Promise<Marketplace[]> {
-    return Array.from(this.marketplaces.values()).filter(
-      (marketplace) => marketplace.userId === userId
-    );
+    try {
+      return await db
+        .select()
+        .from(marketplaces)
+        .where(eq(marketplaces.userId, userId));
+    } catch (error) {
+      console.error("Error getting marketplaces by user:", error);
+      return [];
+    }
   }
 
   async createMarketplace(marketplaceData: InsertMarketplace): Promise<Marketplace> {
-    const id = this.marketplaceId++;
-    const now = new Date();
-    const marketplace: Marketplace = {
-      ...marketplaceData,
-      id,
-      createdAt: now,
-      updatedAt: now,
-      lastSyncedAt: now,
-    };
-    this.marketplaces.set(id, marketplace);
-    return marketplace;
+    try {
+      const [marketplace] = await db
+        .insert(marketplaces)
+        .values({
+          ...marketplaceData,
+          lastSyncedAt: new Date()
+        })
+        .returning();
+      return marketplace;
+    } catch (error) {
+      console.error("Error creating marketplace:", error);
+      throw new Error("Failed to create marketplace");
+    }
   }
 
   async updateMarketplace(id: number, marketplaceData: Partial<Marketplace>): Promise<Marketplace | undefined> {
-    const marketplace = this.marketplaces.get(id);
-    if (!marketplace) return undefined;
-    
-    const updatedMarketplace = {
-      ...marketplace,
-      ...marketplaceData,
-      updatedAt: new Date(),
-    };
-    this.marketplaces.set(id, updatedMarketplace);
-    return updatedMarketplace;
+    try {
+      const [updatedMarketplace] = await db
+        .update(marketplaces)
+        .set({
+          ...marketplaceData,
+          updatedAt: new Date()
+        })
+        .where(eq(marketplaces.id, id))
+        .returning();
+      return updatedMarketplace;
+    } catch (error) {
+      console.error("Error updating marketplace:", error);
+      return undefined;
+    }
   }
 
   async deleteMarketplace(id: number): Promise<boolean> {
-    return this.marketplaces.delete(id);
+    try {
+      const result = await db
+        .delete(marketplaces)
+        .where(eq(marketplaces.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting marketplace:", error);
+      return false;
+    }
   }
 
   // Store Methods
