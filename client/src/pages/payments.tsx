@@ -28,6 +28,7 @@ import {
 import { DataTable } from "@/components/ui/data-table";
 import { useToast } from "@/hooks/use-toast";
 import { CreditCard, DollarSign, Calendar, Tag, CreditCardIcon, Plus, CheckCircle } from "lucide-react";
+import PayPalButton from "@/components/PayPalButton";
 import { format } from "date-fns";
 
 export default function Payments() {
@@ -451,6 +452,51 @@ export default function Payments() {
                     : "49.99"}
                 </span>
               </div>
+            </div>
+          </div>
+
+          <div className="py-3 border-t">
+            <div className="mb-4">
+              <Label htmlFor="payment-option">Select Payment Method</Label>
+              <div className="mt-2 space-y-3">
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="card-payment"
+                    name="payment-option"
+                    className="h-4 w-4 text-primary border-gray-300 focus:ring-primary"
+                    defaultChecked
+                  />
+                  <label htmlFor="card-payment" className="ml-3 block text-sm font-medium text-gray-700">
+                    Credit Card
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="paypal-payment"
+                    name="payment-option"
+                    className="h-4 w-4 text-primary border-gray-300 focus:ring-primary"
+                  />
+                  <label htmlFor="paypal-payment" className="ml-3 block text-sm font-medium text-gray-700">
+                    PayPal
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* PayPal Button */}
+            <div className="mt-4">
+              <div className="flex items-center justify-center mb-2">
+                <PayPalButton 
+                  amount={selectedPlan === "basic" ? "9.99" : selectedPlan === "premium" ? "29.99" : "49.99"} 
+                  currency="USD" 
+                  intent="CAPTURE" 
+                />
+              </div>
+              <p className="text-xs text-center text-gray-500 mt-2">
+                Secure payment processing by PayPal. You will be redirected to complete your payment.
+              </p>
             </div>
           </div>
 

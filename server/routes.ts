@@ -687,6 +687,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PAYPAL ROUTES
+  app.get("/paypal/setup", async (req, res) => {
+    await loadPaypalDefault(req, res);
+  });
+
+  app.post("/paypal/order", async (req, res) => {
+    // Request body should contain: { intent, amount, currency }
+    await createPaypalOrder(req, res);
+  });
+
+  app.post("/paypal/order/:orderID/capture", async (req, res) => {
+    await capturePaypalOrder(req, res);
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
