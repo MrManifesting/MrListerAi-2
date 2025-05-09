@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useInventory, InventoryItem } from '@/hooks/use-inventory';
+import { useInventory } from '@/hooks/use-inventory';
 import { useWebSocketContext } from '@/components/providers/websocket-provider';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+// Use the type from the database schema
+import type { InventoryItem } from '@shared/schema';
+
 interface InventoryTableProps {
   items: InventoryItem[];
   isLoading: boolean;
@@ -37,7 +40,10 @@ interface InventoryTableProps {
 
 export function InventoryTable({ items, isLoading }: InventoryTableProps) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const { deleteItem: deleteItemMutation } = useInventory();
+  const { 
+    deleteItem,
+    isDeletingItem,
+  } = useInventory();
   const { sendInventoryUpdate } = useWebSocketContext();
 
   const formatDate = (date: Date) => {
@@ -53,7 +59,7 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
 
   const handleDelete = (id: number) => {
     if (confirm('Are you sure you want to delete this item?')) {
-      deleteItemMutation(id, {
+      deleteItem(id, {
         onSuccess: () => {
           // Notify other clients that the inventory has changed
           sendInventoryUpdate({ action: 'delete', itemId: id });

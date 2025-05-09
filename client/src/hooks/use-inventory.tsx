@@ -18,14 +18,14 @@ export interface InventoryItem {
   cost: number | null;
   quantity: number;
   status: string;
-  imageUrl: string | null;
+  imageUrls: string[] | null;
   thumbnailUrl: string | null;
-  barcode: string | null;
-  qrCode: string | null;
-  metadata: any;
+  aiGenerated: boolean;
+  aiData: any;
+  marketplaceData: any;
+  metadata: any; // Contains barcode and QR code
   createdAt: Date;
   updatedAt: Date;
-  marketplaceData: any;
 }
 
 export function useInventory() {
@@ -98,8 +98,8 @@ export function useInventory() {
   // Delete inventory item
   const deleteItemMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest('DELETE', `/api/inventory/${id}`);
-      return await res.json();
+      await apiRequest('DELETE', `/api/inventory/${id}`);
+      return { success: true }; // We don't need to parse JSON since delete returns 200 OK
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
@@ -109,6 +109,7 @@ export function useInventory() {
       });
     },
     onError: (error: Error) => {
+      console.error("Delete error:", error);
       toast({
         title: 'Failed to delete item',
         description: error.message,
