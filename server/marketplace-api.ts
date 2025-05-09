@@ -1,6 +1,6 @@
-import { Marketplace, InsertMarketplace, InventoryItem } from "@shared/schema";
-import { storage } from "./storage";
-import { generateMarketplaceCSV as generateCSV, saveCSVFile } from "./marketplace-csv";
+import { InsertMarketplace, Marketplace } from '@shared/schema';
+import { storage } from './storage';
+import { generateMarketplaceCSV, saveCSVFile } from './marketplace-csv';
 
 type MarketplaceAuth = {
   accessToken: string;
@@ -13,57 +13,61 @@ type MarketplaceAuth = {
  */
 export async function connectMarketplace(
   userId: number,
-  marketplaceType: string,
-  credentials: {
-    apiKey?: string;
-    secret?: string;
-    storeUrl?: string;
-    username?: string;
-    password?: string;
-  }
+  marketplaceName: string,
+  authCode: string,
+  shopUrl?: string
 ): Promise<Marketplace> {
-  // Check if this user already has this marketplace type connected
+  console.log(`Connecting to ${marketplaceName} marketplace for user ${userId}`);
+  
+  // Check if marketplace already exists for this user
   const existingMarketplaces = await storage.getMarketplacesByUser(userId);
   const existingMarketplace = existingMarketplaces.find(
-    (m) => m.name.toLowerCase() === marketplaceType.toLowerCase()
+    (m) => m.type.toLowerCase() === marketplaceName.toLowerCase()
   );
-
+  
+  // If marketplace already exists, update it instead of creating a new one
   if (existingMarketplace) {
-    // Update the existing marketplace
-    const updatedMarketplace = await storage.updateMarketplace(
-      existingMarketplace.id,
-      {
-        isConnected: true,
-        accessToken: "mock_token", // In production, use real OAuth token
-        refreshToken: "mock_refresh_token", // In production, use real OAuth refresh token
-        lastSyncedAt: new Date(),
-      }
-    );
-
-    if (!updatedMarketplace) {
-      throw new Error(`Failed to update marketplace: ${marketplaceType}`);
-    }
-
+    console.log(`Marketplace ${marketplaceName} already exists for user ${userId}, updating connection`);
+    
+    const authInfo = await mockAuthenticateMarketplace(marketplaceName, authCode, shopUrl);
+    
+    const updatedMarketplace = await storage.updateMarketplace(existingMarketplace.id, {
+      ...existingMarketplace,
+      isConnected: true,
+      accessToken: authInfo.accessToken,
+      refreshToken: authInfo.refreshToken,
+      expiresAt: new Date(Date.now() + authInfo.expiresIn * 1000),
+      shopUrl: shopUrl || existingMarketplace.shopUrl,
+      updatedAt: new Date()
+    });
+    
     return updatedMarketplace;
   }
-
-  // Mock authenticate with the marketplace
-  const authInfo = await mockAuthenticateMarketplace(marketplaceType, credentials);
-
-  // Create a new marketplace in storage
-  const newMarketplace: InsertMarketplace = {
-    name: marketplaceType,
-    userId,
-    isConnected: true,
-    accessToken: authInfo.accessToken,
-    refreshToken: authInfo.refreshToken,
-    tokenExpiry: new Date(Date.now() + authInfo.expiresIn * 1000),
-    settings: {},
-    lastSyncedAt: new Date(),
-    activeListings: 0,
-  };
-
-  return await storage.createMarketplace(newMarketplace);
+  
+  // For new connections, authenticate and create marketplace record
+  try {
+    const authInfo = await mockAuthenticateMarketplace(marketplaceName, authCode, shopUrl);
+    
+    const newMarketplace: InsertMarketplace = {
+      userId,
+      name: marketplaceName.charAt(0).toUpperCase() + marketplaceName.slice(1),
+      type: marketplaceName.toLowerCase(),
+      isConnected: true,
+      shopUrl: shopUrl || null,
+      accessToken: authInfo.accessToken,
+      refreshToken: authInfo.refreshToken,
+      expiresAt: new Date(Date.now() + authInfo.expiresIn * 1000),
+      settings: {},
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const marketplace = await storage.createMarketplace(newMarketplace);
+    return marketplace;
+  } catch (error) {
+    console.error(`Error connecting to ${marketplaceName}:`, error);
+    throw new Error(`Failed to connect to ${marketplaceName}`);
+  }
 }
 
 /**
@@ -71,14 +75,21 @@ export async function connectMarketplace(
  * In a real-world scenario, this would make API calls to each marketplace's OAuth endpoints
  */
 async function mockAuthenticateMarketplace(
-  marketplaceType: string,
-  credentials: any
+  marketplaceName: string,
+  authCode: string,
+  shopUrl?: string
 ): Promise<MarketplaceAuth> {
-  // Mock OAuth flow - in a real implementation, this would call the marketplace's API
+  // In a real implementation, this would call the marketplace's OAuth API
+  // For demonstration, we'll return mock authentication data
+  console.log(`Authenticating with ${marketplaceName} using code ${authCode}`);
+  
+  // Add a small delay to simulate API request
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
   return {
-    accessToken: `mock_${marketplaceType}_token_${Date.now()}`,
-    refreshToken: `mock_${marketplaceType}_refresh_${Date.now()}`,
-    expiresIn: 3600, // 1 hour
+    accessToken: `mock_${marketplaceName}_access_token_${Date.now()}`,
+    refreshToken: `mock_${marketplaceName}_refresh_token_${Date.now()}`,
+    expiresIn: 3600 // 1 hour in seconds
   };
 }
 
@@ -87,16 +98,17 @@ async function mockAuthenticateMarketplace(
  */
 export async function getMarketplaceListings(marketplaceId: number): Promise<any[]> {
   const marketplace = await storage.getMarketplace(marketplaceId);
+  
   if (!marketplace) {
-    throw new Error(`Marketplace with ID ${marketplaceId} not found`);
+    throw new Error('Marketplace not found');
   }
-
+  
   if (!marketplace.isConnected) {
-    throw new Error(`Marketplace ${marketplace.name} is not connected`);
+    throw new Error('Marketplace is not connected');
   }
-
+  
   // In a real implementation, this would call the marketplace API
-  // For demo purposes, we'll return mock data
+  // using the stored access token
   return mockGetListings(marketplace);
 }
 
@@ -104,19 +116,15 @@ export async function getMarketplaceListings(marketplaceId: number): Promise<any
  * Mock getting listings from a marketplace
  */
 async function mockGetListings(marketplace: Marketplace): Promise<any[]> {
-  // Get user's inventory items
-  const inventoryItems = await storage.getInventoryItemsByUser(marketplace.userId);
+  // In a real implementation, this would call the marketplace's API
+  // For demonstration, we'll return mock listings
+  console.log(`Getting listings from ${marketplace.name}`);
   
-  // Convert inventory items to marketplace listings
-  return inventoryItems.map(item => ({
-    id: `${marketplace.name.toLowerCase()}_${item.id}`,
-    title: item.title,
-    description: item.description,
-    price: item.price,
-    url: `https://${marketplace.name.toLowerCase()}.com/listing/${item.id}`,
-    status: 'active',
-    lastUpdated: new Date().toISOString()
-  }));
+  // Add a small delay to simulate API request
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // Return empty array for now - in a real app, this would return actual listings
+  return [];
 }
 
 /**
@@ -127,25 +135,43 @@ export async function createMarketplaceListing(
   inventoryItemId: number
 ): Promise<any> {
   const marketplace = await storage.getMarketplace(marketplaceId);
+  
   if (!marketplace) {
-    throw new Error(`Marketplace with ID ${marketplaceId} not found`);
+    throw new Error('Marketplace not found');
   }
-
+  
   if (!marketplace.isConnected) {
-    throw new Error(`Marketplace ${marketplace.name} is not connected`);
+    throw new Error('Marketplace is not connected');
   }
-
+  
   const inventoryItem = await storage.getInventoryItem(inventoryItemId);
+  
   if (!inventoryItem) {
-    throw new Error(`Inventory item with ID ${inventoryItemId} not found`);
+    throw new Error('Inventory item not found');
   }
-
-  // In a real implementation, this would call the marketplace API to create the listing
-  // For demo purposes, we'll just return a success message
+  
+  // In a real implementation, this would call the marketplace API
+  // to create a new listing using the inventory item data
+  console.log(`Creating listing on ${marketplace.name} for item ${inventoryItem.sku}`);
+  
+  // Add a small delay to simulate API request
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  // Update inventory item status in our database
+  await storage.updateInventoryItem(inventoryItemId, {
+    ...inventoryItem,
+    status: 'listed',
+    updatedAt: new Date()
+  });
+  
+  // For demonstration, we'll just return a success message
   return {
     success: true,
-    listingId: `${marketplace.name.toLowerCase()}_${inventoryItem.id}`,
-    url: `https://${marketplace.name.toLowerCase()}.com/listing/${inventoryItem.id}`
+    marketplaceId,
+    inventoryItemId,
+    listingId: `mock_listing_${Date.now()}`,
+    marketplace: marketplace.name,
+    itemSku: inventoryItem.sku
   };
 }
 
@@ -154,37 +180,43 @@ export async function createMarketplaceListing(
  */
 export async function syncAllMarketplaces(userId: number): Promise<any> {
   const marketplaces = await storage.getMarketplacesByUser(userId);
+  const connectedMarketplaces = marketplaces.filter(m => m.isConnected);
+  
+  if (connectedMarketplaces.length === 0) {
+    return { message: 'No connected marketplaces to sync' };
+  }
   
   const results = await Promise.all(
-    marketplaces.map(async (marketplace) => {
+    connectedMarketplaces.map(async (marketplace) => {
       try {
-        // Mock marketplace sync logic
-        // In a real implementation, this would call the marketplace API
+        // In a real implementation, this would sync inventory with each marketplace
+        console.log(`Syncing ${marketplace.name} marketplace`);
         
-        // Update the marketplace with lastSyncedAt
-        const updatedMarketplace = await storage.updateMarketplace(
-          marketplace.id,
-          {
-            lastSyncedAt: new Date()
-          }
-        );
+        // Add a small delay to simulate API request
+        await new Promise(resolve => setTimeout(resolve, 800));
         
         return {
-          marketplace: updatedMarketplace,
-          success: true,
-          message: `Successfully synced ${marketplace.name}`
+          marketplaceId: marketplace.id,
+          marketplace: marketplace.name,
+          success: true
         };
       } catch (error) {
+        console.error(`Error syncing ${marketplace.name}:`, error);
         return {
-          marketplace,
+          marketplaceId: marketplace.id,
+          marketplace: marketplace.name,
           success: false,
-          message: `Failed to sync ${marketplace.name}: ${error}`
+          error: error instanceof Error ? error.message : String(error)
         };
       }
     })
   );
   
-  return results;
+  return {
+    synced: results.filter(r => r.success).length,
+    total: connectedMarketplaces.length,
+    results
+  };
 }
 
 /**
@@ -192,77 +224,36 @@ export async function syncAllMarketplaces(userId: number): Promise<any> {
  */
 export async function generateMarketplaceCSVFile(
   marketplaceId: number,
-  inventoryItemIds?: number[]
-): Promise<{ filePath: string; fileName: string }> {
-  // Get marketplace
+  inventoryIds?: number[]
+): Promise<string> {
+  // Get the marketplace
   const marketplace = await storage.getMarketplace(marketplaceId);
+  
   if (!marketplace) {
-    throw new Error(`Marketplace with ID ${marketplaceId} not found`);
+    throw new Error('Marketplace not found');
   }
   
-  // Generate CSV content from the marketplace-csv service
-  const { fileName, csvContent } = await generateCSV(marketplaceId, inventoryItemIds);
+  // Get inventory items to include in the CSV
+  let inventoryItems = [];
   
-  // Save the file
-  const filePath = await saveCSVFile(fileName, csvContent);
-  
-  return { filePath, fileName };
-}
-
-/**
- * Escape text values for CSV export
- */
-function escapeCSV(text: string): string {
-  if (!text) return '';
-  
-  // If value contains comma, newline or double quote, wrap in quotes
-  const needsQuotes = /[",\n\r]/.test(text);
-  
-  if (needsQuotes) {
-    // Double up any quotes within the value
-    const escaped = text.replace(/"/g, '""');
-    return `"${escaped}"`;
+  if (inventoryIds && inventoryIds.length > 0) {
+    // If specific inventory IDs are provided, get only those items
+    inventoryItems = await Promise.all(
+      inventoryIds.map(id => storage.getInventoryItem(id))
+    );
+    // Remove any undefined items (in case some IDs weren't found)
+    inventoryItems = inventoryItems.filter(item => item !== undefined);
+  } else {
+    // Otherwise, get all inventory items for the user
+    inventoryItems = await storage.getInventoryItemsByUser(marketplace.userId);
   }
   
-  return text;
-}
-
-/**
- * Get eBay condition ID
- */
-function getEbayConditionId(condition: string): number {
-  // eBay condition ID mapping
-  const conditionMapping: Record<string, number> = {
-    'new': 1000,
-    'like_new': 1500,
-    'excellent': 1750,
-    'very_good': 2000,
-    'good': 2500,
-    'fair': 3000,
-    'poor': 3500,
-    'for_parts': 7000
-  };
+  if (inventoryItems.length === 0) {
+    throw new Error('No inventory items found for export');
+  }
   
-  return conditionMapping[condition.toLowerCase()] || 3000;
-}
-
-/**
- * Get eBay category from our internal category
- */
-function getEbayCategory(category: string): number {
-  // Sample category mapping - in a real implementation, this would be a comprehensive mapping
-  const categoryMapping: Record<string, number> = {
-    'electronics': 293,
-    'clothing': 11450,
-    'collectibles': 1,
-    'jewelry': 281,
-    'home': 11700,
-    'toys': 220,
-    'books': 267,
-    'art': 550,
-    'sports': 888,
-    'business': 12576
-  };
+  // Generate the CSV content for the marketplace type
+  const csvContent = await generateMarketplaceCSV(marketplace.type, inventoryItems);
   
-  return categoryMapping[category.toLowerCase()] || 1;
+  return csvContent;
 }

@@ -1,163 +1,208 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { Marketplace } from '../../shared/schema';
 
-export interface Marketplace {
-  id: number;
-  userId: number;
-  name: string;
-  type: string;
-  accessToken: string;
-  refreshToken: string;
-  shopUrl?: string;
-  isConnected: boolean;
-  activeListings: number;
-  lastSyncedAt: string | null;
-  expiresAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ConnectMarketplaceRequest {
-  marketplaceName: string;
+export interface MarketplaceConnectionParams {
+  marketplaceName: "Shopify" | "eBay" | "Etsy" | "Amazon";
   authCode: string;
   shopUrl?: string;
 }
 
-export interface ExportCSVRequest {
-  marketplaceId: number;
-  inventoryIds?: number[];
-}
-
 export function useMarketplaces() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportData, setExportData] = useState<{
+    fileUrl: string;
+    fileName: string;
+    marketplace: string;
+    itemCount: number;
+  } | null>(null);
 
   // Fetch all marketplaces
   const {
     data: marketplaces,
     isLoading,
-    isError,
     error,
-    refetch,
+    refetch
   } = useQuery<Marketplace[]>({
     queryKey: ['/api/marketplaces'],
-    onError: (error: any) => {
-      toast({
-        title: 'Error fetching marketplaces',
-        description: error.message || 'Could not load marketplace data',
-        variant: 'destructive',
-      });
-    },
+    // Make sure TanStack Query is updated to v5 format
+    meta: {
+      errorMessage: 'Failed to load marketplaces'
+    }
   });
 
-  // Connect a marketplace
-  const connectMarketplace = useMutation({
-    mutationFn: async (data: ConnectMarketplaceRequest) => {
-      const response = await apiRequest('POST', '/api/marketplaces/connect', data);
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/marketplaces'] });
-      toast({
-        title: 'Marketplace connected',
-        description: `${data.name} has been successfully connected.`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Connection failed',
-        description: error.message || 'Failed to connect marketplace',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Sync all marketplaces
-  const syncAllMarketplaces = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/marketplaces/sync-all');
+  // Connect to a marketplace
+  const connectMarketplaceMutation = useMutation({
+    mutationFn: async (params: MarketplaceConnectionParams) => {
+      const response = await apiRequest('POST', '/api/marketplaces/connect', params);
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/marketplaces'] });
       toast({
-        title: 'Sync initiated',
-        description: 'All marketplaces are being synchronized',
+        title: 'Success',
+        description: 'Marketplace connected successfully',
       });
+      queryClient.invalidateQueries({ queryKey: ['/api/marketplaces'] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
-        title: 'Sync failed',
-        description: error.message || 'Failed to sync marketplaces',
+        title: 'Failed to connect marketplace',
+        description: error.message,
         variant: 'destructive',
       });
-    },
+    }
   });
 
-  // Disconnect a marketplace
-  const disconnectMarketplace = useMutation({
+  // Disconnect (delete) a marketplace
+  const disconnectMarketplaceMutation = useMutation({
     mutationFn: async (marketplaceId: number) => {
       const response = await apiRequest('DELETE', `/api/marketplaces/${marketplaceId}`);
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/marketplaces'] });
       toast({
-        title: 'Marketplace disconnected',
-        description: 'The marketplace has been disconnected',
+        title: 'Success',
+        description: 'Marketplace disconnected successfully',
       });
+      queryClient.invalidateQueries({ queryKey: ['/api/marketplaces'] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
-        title: 'Disconnect failed',
-        description: error.message || 'Failed to disconnect marketplace',
+        title: 'Failed to disconnect marketplace',
+        description: error.message,
         variant: 'destructive',
       });
-    },
+    }
   });
 
-  // Export listings to CSV
-  const exportToCSV = useMutation({
-    mutationFn: async (data: ExportCSVRequest) => {
-      const response = await apiRequest('POST', `/api/marketplaces/${data.marketplaceId}/export-csv`, {
-        inventoryIds: data.inventoryIds,
+  // Sync all marketplaces
+  const syncMarketplacesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/marketplaces/sync');
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Sync completed',
+        description: `Successfully synced ${data.synced} of ${data.total} marketplaces`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/marketplaces'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to sync marketplaces',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Generate CSV export for a marketplace
+  const generateCSVExportMutation = useMutation({
+    mutationFn: async ({ marketplaceId, inventoryIds }: { marketplaceId: number, inventoryIds?: number[] }) => {
+      setIsExporting(true);
+      const response = await apiRequest('POST', '/api/inventory/export-csv', {
+        marketplaceId,
+        inventoryIds
       });
       return await response.json();
     },
     onSuccess: (data) => {
-      // Create a link to download the CSV
-      const link = document.createElement('a');
-      link.href = data.fileUrl;
-      link.setAttribute('download', data.fileName);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
+      setExportData(data);
       toast({
-        title: 'CSV Export Complete',
-        description: `Export file "${data.fileName}" is ready for download`,
+        title: 'CSV Export Generated',
+        description: `${data.itemCount} items exported for ${data.marketplace}`,
       });
+      setIsExporting(false);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
-        title: 'Export failed',
-        description: error.message || 'Failed to export listings to CSV',
+        title: 'Failed to generate CSV export',
+        description: error.message,
         variant: 'destructive',
       });
-    },
+      setIsExporting(false);
+    }
   });
+
+  // Utility function to find marketplace by type
+  const findMarketplaceByType = (type: string): Marketplace | undefined => {
+    if (!marketplaces) return undefined;
+    return marketplaces.find(m => m.type.toLowerCase() === type.toLowerCase());
+  };
+
+  // Check if a marketplace type is connected
+  const isMarketplaceConnected = (type: string): boolean => {
+    const marketplace = findMarketplaceByType(type);
+    return marketplace ? marketplace.isConnected : false;
+  };
+
+  // Connect to a marketplace
+  const connectMarketplace = (params: MarketplaceConnectionParams) => {
+    connectMarketplaceMutation.mutate(params);
+  };
+
+  // Disconnect a marketplace
+  const disconnectMarketplace = (marketplaceId: number) => {
+    disconnectMarketplaceMutation.mutate(marketplaceId);
+  };
+
+  // Sync all marketplaces
+  const syncMarketplaces = () => {
+    syncMarketplacesMutation.mutate();
+  };
+
+  // Export items to CSV for a specific marketplace
+  const generateCSVExport = (marketplaceName: string, inventoryIds?: number[]) => {
+    const marketplace = findMarketplaceByType(marketplaceName);
+    if (!marketplace) {
+      toast({
+        title: 'Marketplace not found',
+        description: `${marketplaceName} is not connected`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    generateCSVExportMutation.mutate({
+      marketplaceId: marketplace.id,
+      inventoryIds
+    });
+  };
+
+  // Download the exported CSV file
+  const downloadCSVExport = () => {
+    if (!exportData) return;
+    
+    // Create a temporary link element to trigger download
+    const link = document.createElement('a');
+    link.href = exportData.fileUrl;
+    link.download = exportData.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return {
     marketplaces,
     isLoading,
-    isError,
     error,
     refetch,
     connectMarketplace,
-    syncAllMarketplaces,
     disconnectMarketplace,
-    exportToCSV,
+    syncMarketplaces,
+    isMarketplaceConnected,
+    findMarketplaceByType,
+    generateCSVExport,
+    isExporting,
+    exportData,
+    downloadCSVExport,
+    connectMarketplaceMutation,
+    disconnectMarketplaceMutation,
+    syncMarketplacesMutation,
+    generateCSVExportMutation
   };
 }

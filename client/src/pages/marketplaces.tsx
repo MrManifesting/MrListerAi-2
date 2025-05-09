@@ -78,15 +78,27 @@ const shopifyFormSchema = z.object({
   authCode: z.string().min(1, "Authorization code is required"),
 });
 
-const standardFormSchema = z.object({
-  marketplaceName: z.string().min(1, "Marketplace name is required"),
+const ebayFormSchema = z.object({
+  marketplaceName: z.literal("eBay"),
+  authCode: z.string().min(1, "Authorization code is required"),
+});
+
+const etsyFormSchema = z.object({
+  marketplaceName: z.literal("Etsy"),
+  authCode: z.string().min(1, "Authorization code is required"),
+});
+
+const amazonFormSchema = z.object({
+  marketplaceName: z.literal("Amazon"),
   authCode: z.string().min(1, "Authorization code is required"),
 });
 
 // Combined schema with discriminated union
 const marketplaceFormSchema = z.discriminatedUnion("marketplaceName", [
   shopifyFormSchema,
-  standardFormSchema,
+  ebayFormSchema,
+  etsyFormSchema,
+  amazonFormSchema,
 ]);
 
 export default function Marketplaces() {
@@ -106,7 +118,8 @@ export default function Marketplaces() {
     connectMarketplace,
     syncAllMarketplaces,
     disconnectMarketplace,
-    exportToCSV,
+    generateCSVExport,
+    downloadCSVExport,
   } = useMarketplaces();
 
   // Get inventory items
@@ -646,10 +659,7 @@ export default function Marketplaces() {
             <Button 
               onClick={() => {
                 if (selectedMarketplaceId && selectedItems.length > 0) {
-                  exportToCSV.mutate({
-                    marketplaceId: selectedMarketplaceId,
-                    inventoryIds: selectedItems,
-                  });
+                  generateCSVExport(selectedMarketplace, selectedItems.length > 0 ? selectedItems : undefined);
                   setShowExportModal(false);
                 } else {
                   toast({
@@ -659,9 +669,9 @@ export default function Marketplaces() {
                   });
                 }
               }}
-              disabled={exportToCSV.isPending || selectedItems.length === 0}
+              disabled={generateCSVExportMutation.isPending || selectedItems.length === 0}
             >
-              {exportToCSV.isPending ? (
+              {generateCSVExportMutation.isPending ? (
                 <>Generating CSV...</>
               ) : (
                 <>

@@ -340,7 +340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/marketplaces", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
-      const marketplaces = await storage.getMarketplacesByUserId(user.id);
+      const marketplaces = await storage.getMarketplacesByUser(user.id);
       res.json(marketplaces);
     } catch (error) {
       console.error("Error fetching marketplaces:", error);
@@ -559,33 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // MARKETPLACE ROUTES
-  app.get("/api/marketplaces", requireAuth, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const marketplaces = await storage.getMarketplacesByUser(user.id);
-      res.json(marketplaces);
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching marketplaces" });
-    }
-  });
-
-  app.post("/api/marketplaces/connect", requireAuth, async (req, res) => {
-    try {
-      const { marketplaceName, authCode } = req.body;
-      
-      if (!marketplaceName || !authCode) {
-        return res.status(400).json({ message: "Marketplace name and auth code are required" });
-      }
-      
-      const user = req.user as any;
-      const result = await connectMarketplace(user.id, marketplaceName, authCode);
-      
-      res.json(result);
-    } catch (error) {
-      res.status(500).json({ message: "Error connecting to marketplace" });
-    }
-  });
+  // ADDITIONAL MARKETPLACE ROUTES
 
   app.get("/api/marketplaces/:id/listings", requireAuth, async (req, res) => {
     try {
@@ -688,7 +662,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const user = req.user as any;
-      const { filePath, fileName } = await generateMarketplaceCSVFile(parseInt(marketplaceId), inventoryIds);
       
       // Get the marketplace to use its name
       const marketplace = await storage.getMarketplace(parseInt(marketplaceId));
@@ -696,13 +669,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Marketplace not found" });
       }
       
-      // Read the CSV file
-      const csvContent = await fs.readFile(filePath, { encoding: 'utf8' });
+      // Generate CSV content for marketplace
+      const csvContent = await generateMarketplaceCSVFile(parseInt(marketplaceId), inventoryIds);
       
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-      res.send(csvContent);
+      // Save the CSV file to a temporary location
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const fileName = `${marketplace.name.toLowerCase()}-listings-${timestamp}.csv`;
+      const filePath = path.join(process.cwd(), 'temp', fileName);
+      
+      // Make sure the temp directory exists
+      await fs.mkdir(path.join(process.cwd(), 'temp'), { recursive: true });
+      
+      // Write the CSV data to the file
+      await fs.writeFile(filePath, csvContent);
+      
+      // Return the file path and name
+      res.json({
+        fileUrl: `/temp/${fileName}`,
+        fileName,
+        marketplace: marketplace.name,
+        itemCount: inventoryIds ? inventoryIds.length : 0
+      });
     } catch (error) {
+      console.error("Error generating CSV export:", error);
       res.status(500).json({ message: "Error generating CSV export" });
     }
   });
