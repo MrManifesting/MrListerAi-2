@@ -46,12 +46,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     session({
       secret: process.env.SESSION_SECRET || "mr-lister-secret",
       resave: false,
-      saveUninitialized: false,
+      saveUninitialized: true,
       store: new MemStoreSession({
         checkPeriod: 86400000, // prune expired entries every 24h
       }),
       cookie: {
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax"
       },
     })
   );
