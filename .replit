@@ -22,7 +22,7 @@ localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "Start Production App"
+runButton = "Build and Run Production"
 
 [[workflows.workflow]]
 name = "Project"
@@ -44,6 +44,23 @@ waitForPort = 5000
 
 [[workflows.workflow]]
 name = "Start Production App"
+author = 30752682
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm ci"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production npm run build"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production node --max-old-space-size=512 dist/index.js"
+
+[[workflows.workflow]]
+name = "Build and Run Production"
 author = 30752682
 mode = "sequential"
 
