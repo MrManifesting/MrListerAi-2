@@ -66,8 +66,8 @@ export function useImageAnalysis() {
   
   // Add item to inventory from analysis
   const addToInventoryMutation = useMutation({
-    mutationFn: async (analysisId: number) => {
-      const res = await apiRequest('POST', `/api/analyses/${analysisId}/add-to-inventory`);
+    mutationFn: async ({ analysisId, customData = {} }: { analysisId: number; customData?: Record<string, any> }) => {
+      const res = await apiRequest('POST', `/api/analyses/${analysisId}/add-to-inventory`, customData);
       return await res.json();
     },
     onSuccess: (data) => {

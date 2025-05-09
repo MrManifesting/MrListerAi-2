@@ -23,10 +23,11 @@ export function AnalysisList({ analyses, onItemAdded }: AnalysisListProps) {
   const { addToInventory, isAddingToInventory, deleteAnalysis } = useImageAnalysis();
 
   const handleAddToInventory = (analysisId: number) => {
-    addToInventory(analysisId, {
+    addToInventory({ 
+      analysisId,
       onSuccess: () => {
         if (onItemAdded) onItemAdded();
-      },
+      } 
     });
   };
 
