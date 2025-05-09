@@ -17,6 +17,16 @@ import {
   InsertSubscription,
   Analytics,
   InsertAnalytics,
+  // Import the table definitions as well
+  users,
+  inventoryItems,
+  marketplaces,
+  stores,
+  sales,
+  donations,
+  imageAnalysis,
+  subscriptions,
+  analytics
 } from "@shared/schema";
 
 // Storage interface with all CRUD methods needed for the application
