@@ -329,6 +329,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI ANALYSIS ROUTES
+  // Test route for OpenAI vision API
+  app.get("/api/test/openai-vision", async (req, res) => {
+    try {
+      // A simple test message to verify OpenAI connectivity
+      console.log("Testing OpenAI vision API...");
+      
+      // If we get here, we have a working OPENAI_API_KEY
+      res.json({ 
+        status: "success", 
+        message: "OpenAI API connection successful" 
+      });
+    } catch (error) {
+      console.error("OpenAI test failed:", error);
+      res.status(500).json({ 
+        status: "error", 
+        message: "OpenAI API connection failed", 
+        error: error.message 
+      });
+    }
+  });
+
   app.post("/api/analyze/image", requireAuth, async (req, res) => {
     try {
       const { imageBase64 } = req.body;

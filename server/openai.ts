@@ -46,12 +46,29 @@ export async function analyzeProductImage(base64Image: string): Promise<{
   materials: string[];
 }> {
   try {
-    console.log(`Analyzing product image with base64 data of length: ${base64Image.length}`);
+    // Validate the base64 string before processing
+    if (!base64Image || typeof base64Image !== 'string') {
+      console.error('Invalid base64Image provided, not a string');
+      throw new Error('Invalid image data format');
+    }
+    
+    // Check if we have correct formatting
+    const startsWithDataUrl = base64Image.startsWith('data:');
+    const containsBase64Marker = base64Image.includes('base64,');
+    
+    console.log(`Analyzing product image with base64 data of length: ${base64Image.length}. Has data URL prefix: ${startsWithDataUrl}, contains base64 marker: ${containsBase64Marker}`);
     
     // Check if base64 data is valid
     if (!base64Image || base64Image.length < 100) {
       console.error("Invalid base64 image data received, length too short:", base64Image.length);
       throw new Error("Invalid image data received");
+    }
+    
+    // If we have a data URL format, we need to strip it out for OpenAI
+    let processedBase64 = base64Image;
+    if (base64Image.includes('base64,')) {
+      processedBase64 = base64Image.split('base64,')[1];
+      console.log(`Extracted base64 data from URL format, new length: ${processedBase64.length}`);
     }
 
     // Call OpenAI vision model to analyze the image
@@ -89,7 +106,7 @@ export async function analyzeProductImage(base64Image: string): Promise<{
             {
               type: "image_url",
               image_url: {
-                url: base64Image.startsWith('data:') ? base64Image : `data:image/jpeg;base64,${base64Image}`
+                url: processedBase64.startsWith('data:') ? processedBase64 : `data:image/jpeg;base64,${processedBase64}`
               }
             }
           ]

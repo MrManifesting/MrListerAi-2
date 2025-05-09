@@ -21,6 +21,10 @@ export function ImageUpload({ onAnalysisComplete }: ImageUploadProps) {
   const analyzeMutation = useMutation({
     mutationFn: async (imageBase64: string) => {
       console.log(`Sending image with base64 length: ${imageBase64.length}`);
+      
+      // Check if base64 has data URL prefix or not
+      const hasPrefix = imageBase64.startsWith('data:');
+      console.log(`Base64 has data URL prefix: ${hasPrefix}, prefix check:`, imageBase64.substring(0, Math.min(30, imageBase64.length)));
       // Add timeout to handle long-running API calls
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
