@@ -190,10 +190,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
+  // This route returns user details
+  app.get("/api/user/details", requireAuth, (req, res) => {
     const user = req.user as any;
     res.json({
       id: user.id,

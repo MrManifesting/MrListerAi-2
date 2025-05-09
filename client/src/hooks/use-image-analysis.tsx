@@ -1,98 +1,88 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiRequest, queryClient } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import { useWebSocketContext } from '@/components/providers/websocket-provider';
-
-export interface ImageAnalysis {
-  id: number;
-  userId: number;
-  imageUrl: string;
-  thumbnailUrl: string | null;
-  status: string;
-  analysisData: any;
-  suggestedTitle: string | null;
-  suggestedDescription: string | null;
-  suggestedCategory: string | null;
-  suggestedSubcategory: string | null;
-  suggestedCondition: string | null;
-  suggestedPrice: number | null;
-  metadata: any;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { ImageAnalysis } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import { useWebSocketContext } from "@/components/providers/websocket-provider";
 
 export function useImageAnalysis() {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const { sendInventoryUpdate } = useWebSocketContext();
-  
-  // Fetch all analyses
-  const { 
-    data: analyses, 
-    error, 
+
+  // Get all image analyses for the current user
+  const {
+    data: analyses,
     isLoading,
-    refetch 
+    isError,
+    refetch,
   } = useQuery<ImageAnalysis[]>({
-    queryKey: ['/api/analyses'],
+    queryKey: ["/api/analyses"],
   });
-  
-  // Upload image for analysis
-  const uploadMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const res = await fetch('/api/analyses/upload', {
-        method: 'POST',
-        body: formData,
+
+  // Analyze a product image
+  const analyzeImage = useMutation({
+    mutationFn: async (imageBase64: string) => {
+      const response = await apiRequest("POST", "/api/analyze/image", {
+        imageBase64,
       });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Failed to upload image');
-      }
-      return await res.json();
+      return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/analyses'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/analyses"] });
       toast({
-        title: 'Analysis Started',
-        description: 'Your image is being analyzed. This may take a moment.',
+        title: "Analysis complete",
+        description: "The image has been successfully analyzed.",
       });
+      return data;
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
-        title: 'Upload Failed',
-        description: error.message,
-        variant: 'destructive',
+        title: "Analysis failed",
+        description: "There was an error analyzing the image.",
+        variant: "destructive",
       });
     },
   });
-  
-  // Add item to inventory from analysis
-  const addToInventoryMutation = useMutation({
-    mutationFn: async ({ analysisId, customData = {} }: { analysisId: number; customData?: Record<string, any> }) => {
-      const res = await apiRequest('POST', `/api/analyses/${analysisId}/add-to-inventory`, customData);
-      return await res.json();
+
+  // Add an analyzed item to inventory
+  const addToInventory = useMutation({
+    mutationFn: async ({
+      analysisId,
+      customData = {},
+    }: {
+      analysisId: number;
+      customData?: Record<string, any>;
+    }) => {
+      const response = await apiRequest(
+        "POST",
+        `/api/analyses/${analysisId}/add-to-inventory`,
+        customData
+      );
+      return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/analyses'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/analyses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       
       // Send WebSocket update to notify other clients
       sendInventoryUpdate(data);
       
       toast({
-        title: 'Item Added',
-        description: 'Analysis has been added to your inventory.',
+        title: "Item added to inventory",
+        description: "The analyzed item has been added to your inventory.",
       });
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
-        title: 'Failed to Add',
-        description: error.message,
-        variant: 'destructive',
+        title: "Failed to add item",
+        description: "There was an error adding the item to your inventory.",
+        variant: "destructive",
       });
     },
   });
   
   // Delete analysis
-  const deleteAnalysisMutation = useMutation({
+  const deleteAnalysis = useMutation({
     mutationFn: async (id: number) => {
       const res = await apiRequest('DELETE', `/api/analyses/${id}`);
       return await res.json();
@@ -112,17 +102,17 @@ export function useImageAnalysis() {
       });
     },
   });
-  
+
   return {
     analyses,
     isLoading,
-    error,
+    isError,
     refetch,
-    uploadImage: uploadMutation.mutate,
-    addToInventory: addToInventoryMutation.mutate,
-    deleteAnalysis: deleteAnalysisMutation.mutate,
-    isUploading: uploadMutation.isPending,
-    isAddingToInventory: addToInventoryMutation.isPending,
-    isDeleting: deleteAnalysisMutation.isPending,
+    analyzeImage,
+    addToInventory,
+    deleteAnalysis,
+    isUploading: analyzeImage.isPending,
+    isAddingToInventory: addToInventory.isPending,
+    isDeleting: deleteAnalysis.isPending
   };
 }

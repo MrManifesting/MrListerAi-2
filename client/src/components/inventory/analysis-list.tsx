@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useImageAnalysis, ImageAnalysis } from '@/hooks/use-image-analysis';
+import { useImageAnalysis } from '@/hooks/use-image-analysis';
+import { ImageAnalysis } from '@shared/schema';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,11 +24,14 @@ export function AnalysisList({ analyses, onItemAdded }: AnalysisListProps) {
   const { addToInventory, isAddingToInventory, deleteAnalysis } = useImageAnalysis();
 
   const handleAddToInventory = (analysisId: number) => {
-    addToInventory({ 
+    // Call the mutation's mutate function with the parameters
+    addToInventory.mutate({ 
       analysisId,
+      customData: {}
+    }, {
       onSuccess: () => {
         if (onItemAdded) onItemAdded();
-      } 
+      }
     });
   };
 
