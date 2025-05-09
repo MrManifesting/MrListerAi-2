@@ -1412,11 +1412,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Generate CSV file
-      const csvResult = await generateMarketplaceCSVFile(
-        (req.user as any).id,
-        marketplaceType,
-        marketplace?.id
-      );
+      const marketplaceIdToUse = marketplace?.id || (marketplaceId ? parseInt(marketplaceId, 10) : undefined);
+      if (!marketplaceIdToUse) {
+        return res.status(400).json({ error: "Valid marketplace ID is required" });
+      }
+      
+      const csvResult = await generateMarketplaceCSVFile(marketplaceIdToUse);
       
       res.json({
         success: true,
