@@ -1,5 +1,5 @@
-import * as pdfMakeType from 'pdfmake/build/pdfmake';
-import * as pdfFontsType from 'pdfmake/build/vfs_fonts';
+import * as pdfMakeType from 'pdfmake/build/pdfmake.js';
+import * as pdfFontsType from 'pdfmake/build/vfs_fonts.js';
 import { TDocumentDefinitions, TDocumentStyles } from 'pdfmake/interfaces';
 import { InventoryItem } from '@shared/schema';
 import { storage } from './storage';
