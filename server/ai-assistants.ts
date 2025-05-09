@@ -220,11 +220,18 @@ export async function addMessageToThread(
   fileIds: string[] = []
 ) {
   try {
-    const message = await openai.beta.threads.messages.create(threadId, {
+    // Create message params object
+    const messageParams: any = {
       role: "user",
       content,
-      file_ids: fileIds,
-    });
+    };
+    
+    // Only add file_ids if present (to avoid TypeScript error)
+    if (fileIds && fileIds.length > 0) {
+      messageParams.file_ids = fileIds;
+    }
+    
+    const message = await openai.beta.threads.messages.create(threadId, messageParams);
     return message;
   } catch (error) {
     console.error("Error adding message to thread:", error);
@@ -237,16 +244,51 @@ export async function addMessageToThread(
  */
 export async function uploadFile(filePath: string) {
   try {
+    // Create a proper file-like object with name and other required properties
     const fileContent = await fs.readFile(filePath);
-    const file = await openai.files.create({
-      file: fileContent,
+    const fileName = path.basename(filePath);
+    
+    // Create a Blob from the buffer with appropriate mime type
+    const mimeType = getMimeType(fileName);
+    const blob = new Blob([fileContent], { type: mimeType });
+    
+    // Create a File object that satisfies the FileLike interface
+    const file = new File([blob], fileName, { type: mimeType });
+    
+    // Upload the file
+    const uploadedFile = await openai.files.create({
+      file: file as any, // Type cast as any to bypass TypeScript check
       purpose: "assistants",
     });
-    return file;
+    
+    return uploadedFile;
   } catch (error) {
     console.error("Error uploading file:", error);
     throw error;
   }
+}
+
+// Helper to determine MIME type from filename
+function getMimeType(fileName: string): string {
+  const extension = fileName.split('.').pop()?.toLowerCase() || '';
+  
+  const mimeTypes: Record<string, string> = {
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'txt': 'text/plain',
+    'csv': 'text/csv',
+    'json': 'application/json',
+  };
+  
+  return mimeTypes[extension] || 'application/octet-stream';
 }
 
 /**

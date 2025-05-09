@@ -35,6 +35,7 @@ export interface IStorage {
   getInventoryItemBySku(sku: string): Promise<InventoryItem | undefined>;
   getInventoryItemsByUser(userId: number): Promise<InventoryItem[]>;
   getInventoryItemsByStore(storeId: number): Promise<InventoryItem[]>;
+  getInventoryItemByBarcode(userId: number, barcode: string): Promise<InventoryItem | undefined>;
   createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
   updateInventoryItem(id: number, itemData: Partial<InventoryItem>): Promise<InventoryItem | undefined>;
   deleteInventoryItem(id: number): Promise<boolean>;

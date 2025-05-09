@@ -32,6 +32,17 @@ import {
   getImageMetadata
 } from "./image-processor";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
+import {
+  initializeAssistants,
+  createThread,
+  addMessageToThread,
+  getThreadMessages,
+  runAssistantOnThread,
+  generateOptimizedListing,
+  analyzePricingWithAssistant,
+  identifyProductWithAssistant,
+  generateCustomerServiceResponse
+} from "./ai-assistants";
 import { insertUserSchema, insertInventoryItemSchema } from "@shared/schema";
 import session from "express-session";
 import passport from "passport";
@@ -986,6 +997,256 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/paypal/order/:orderID/capture", async (req, res) => {
     await capturePaypalOrder(req, res);
+  });
+  
+  // OPENAI ASSISTANTS ROUTES
+  app.post("/api/assistants/threads", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const thread = await createThread(user.id);
+      res.json(thread);
+    } catch (error) {
+      console.error("Error creating thread:", error);
+      res.status(500).json({ 
+        message: "Error creating assistant thread",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.post("/api/assistants/threads/:threadId/messages", requireAuth, async (req, res) => {
+    try {
+      const { threadId } = req.params;
+      const { content, fileIds } = req.body;
+      
+      if (!content) {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+      
+      const message = await addMessageToThread(threadId, content, fileIds || []);
+      res.json(message);
+    } catch (error) {
+      console.error("Error adding message to thread:", error);
+      res.status(500).json({ 
+        message: "Error adding message to assistant thread",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.get("/api/assistants/threads/:threadId/messages", requireAuth, async (req, res) => {
+    try {
+      const { threadId } = req.params;
+      const messages = await getThreadMessages(threadId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error getting thread messages:", error);
+      res.status(500).json({ 
+        message: "Error retrieving assistant thread messages",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.post("/api/assistants/threads/:threadId/run", requireAuth, async (req, res) => {
+    try {
+      const { threadId } = req.params;
+      const { assistantName, additionalInstructions } = req.body;
+      
+      if (!assistantName) {
+        return res.status(400).json({ message: "Assistant name is required" });
+      }
+      
+      const response = await runAssistantOnThread(assistantName, threadId, additionalInstructions);
+      res.json(response);
+    } catch (error) {
+      console.error("Error running assistant:", error);
+      res.status(500).json({ 
+        message: "Error running assistant on thread",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.post("/api/assistants/optimize-listing", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { title, description, category, marketplace } = req.body;
+      
+      if (!title || !description || !marketplace) {
+        return res.status(400).json({ message: "Title, description, and marketplace are required" });
+      }
+      
+      const response = await generateOptimizedListing(
+        user.id,
+        title,
+        description,
+        category || "General", 
+        marketplace
+      );
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Error generating optimized listing:", error);
+      res.status(500).json({ 
+        message: "Error generating optimized listing",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.post("/api/assistants/analyze-pricing", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { 
+        productTitle, 
+        category, 
+        condition, 
+        costPrice, 
+        competitorPrices, 
+        marketplace 
+      } = req.body;
+      
+      if (!productTitle || !category || !condition) {
+        return res.status(400).json({ 
+          message: "Product title, category, and condition are required" 
+        });
+      }
+      
+      const response = await analyzePricingWithAssistant(
+        user.id,
+        productTitle,
+        category,
+        condition,
+        parseFloat(costPrice) || 0,
+        Array.isArray(competitorPrices) ? competitorPrices.map(p => parseFloat(p) || 0) : [],
+        marketplace || "General"
+      );
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Error analyzing pricing:", error);
+      res.status(500).json({ 
+        message: "Error analyzing pricing strategy",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.post("/api/assistants/identify-product", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { productDescription, imageFileId } = req.body;
+      
+      if (!productDescription) {
+        return res.status(400).json({ message: "Product description is required" });
+      }
+      
+      const response = await identifyProductWithAssistant(
+        user.id,
+        productDescription,
+        imageFileId
+      );
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Error identifying product:", error);
+      res.status(500).json({ 
+        message: "Error identifying product",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.post("/api/assistants/customer-service", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { customerInquiry, productDetails, orderDetails } = req.body;
+      
+      if (!customerInquiry || !productDetails) {
+        return res.status(400).json({ 
+          message: "Customer inquiry and product details are required" 
+        });
+      }
+      
+      const response = await generateCustomerServiceResponse(
+        user.id,
+        customerInquiry,
+        productDetails,
+        orderDetails
+      );
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Error generating customer service response:", error);
+      res.status(500).json({ 
+        message: "Error generating customer service response",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // MOBILE BARCODE SCANNER ROUTES
+  app.get("/api/inventory/barcode/:barcode", requireAuth, async (req, res) => {
+    try {
+      const { barcode } = req.params;
+      const user = req.user as any;
+      
+      if (!barcode) {
+        return res.status(400).json({ message: "Barcode is required" });
+      }
+      
+      // Look up the inventory item by barcode
+      const item = await storage.getInventoryItemByBarcode(user.id, barcode);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      console.error("Error looking up barcode:", error);
+      res.status(500).json({ 
+        message: "Error looking up barcode",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Employee QR Code Check-in Route
+  app.post("/api/employee/checkin", requireAuth, async (req, res) => {
+    try {
+      const { qrCode, location } = req.body;
+      const user = req.user as any;
+      
+      if (!qrCode) {
+        return res.status(400).json({ message: "QR code is required" });
+      }
+      
+      // Optional: Validate the QR code format
+      const qrParts = qrCode.split(':');
+      if (qrParts.length !== 2 || qrParts[0] !== 'EMPLOYEE_CHECKIN') {
+        return res.status(400).json({ message: "Invalid QR code format" });
+      }
+      
+      const locationId = qrParts[1];
+      
+      // Record the check-in
+      const checkin = await storage.createEmployeeCheckin({
+        userId: user.id,
+        locationId,
+        timestamp: new Date(),
+        location: location || "Unknown",
+      });
+      
+      res.status(201).json(checkin);
+    } catch (error) {
+      console.error("Error processing employee check-in:", error);
+      res.status(500).json({ 
+        message: "Error processing employee check-in",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   });
 
   const httpServer = createServer(app);
