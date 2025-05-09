@@ -1,166 +1,266 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tag, Edit } from "lucide-react";
-import { ImageAnalysis } from "@shared/schema";
-import { useState } from "react";
+import { useState } from 'react';
+import { useImageAnalysis, ImageAnalysis } from '@/hooks/use-image-analysis';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { AlertCircle, Check, Clock, Plus, Eye, Trash2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface AnalysisListProps {
   analyses: ImageAnalysis[];
-  onItemAdded: () => void;
+  onItemAdded?: () => void;
 }
 
 export function AnalysisList({ analyses, onItemAdded }: AnalysisListProps) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
+  const [selectedAnalysis, setSelectedAnalysis] = useState<ImageAnalysis | null>(null);
+  const { addToInventory, isAddingToInventory, deleteAnalysis } = useImageAnalysis();
 
-  // Toggle item expansion
-  const toggleItemExpansion = (id: number) => {
-    setExpandedItems(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
+  const handleAddToInventory = (analysisId: number) => {
+    addToInventory(analysisId, {
+      onSuccess: () => {
+        if (onItemAdded) onItemAdded();
+      },
+    });
   };
 
-  // Add to inventory mutation
-  const addToInventoryMutation = useMutation({
-    mutationFn: async (analysisId: number) => {
-      const response = await apiRequest(
-        "POST",
-        `/api/analyses/${analysisId}/add-to-inventory`,
-        {}
-      );
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      toast({
-        title: "Item added to inventory",
-        description: "The item has been successfully added to your inventory.",
-      });
-      onItemAdded();
-    },
-    onError: () => {
-      toast({
-        title: "Failed to add item",
-        description: "There was an error adding the item to your inventory.",
-        variant: "destructive",
-      });
-    },
-  });
+  const renderStatus = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return (
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-200 flex items-center">
+            <Check className="h-3 w-3 mr-1" /> Complete
+          </Badge>
+        );
+      case 'processing':
+        return (
+          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 flex items-center">
+            <Clock className="h-3 w-3 mr-1" /> Processing
+          </Badge>
+        );
+      case 'failed':
+        return (
+          <Badge className="bg-red-100 text-red-800 hover:bg-red-200 flex items-center">
+            <AlertCircle className="h-3 w-3 mr-1" /> Failed
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="flex items-center">
+            {status}
+          </Badge>
+        );
+    }
+  };
 
-  if (!analyses || analyses.length === 0) {
+  const truncateText = (text: string, length: number) => {
+    if (!text) return '';
+    return text.length > length ? text.substring(0, length) + '...' : text;
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(value);
+  };
+
+  if (analyses.length === 0) {
     return (
-      <Card>
-        <CardContent className="p-6 text-center text-gray-500">
-          No analyzed items found. Upload images to analyze products.
-        </CardContent>
+      <Card className="p-6 text-center">
+        <p className="text-muted-foreground">No analyses available</p>
       </Card>
     );
   }
 
-  // Sort analyses by creation date (newest first)
-  const sortedAnalyses = [...analyses].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-medium text-gray-900">Recent AI Analyzed Items</h2>
-      <p className="mt-1 text-sm text-gray-500">
-        Review and edit AI-generated information before adding to inventory
-      </p>
-
-      <div className="mt-4 bg-white shadow overflow-hidden sm:rounded-md">
-        <ul role="list" className="divide-y divide-gray-200">
-          {sortedAnalyses.map((analysis) => (
-            <li key={analysis.id}>
-              <div className="block hover:bg-gray-50">
-                <div className="flex items-center px-4 py-4 sm:px-6">
-                  <div className="min-w-0 flex-1 flex items-center">
-                    {/* Product Image */}
-                    <div className="flex-shrink-0 h-16 w-16 rounded overflow-hidden border border-gray-200">
-                      {analysis.processedImageUrl ? (
-                        <img
-                          src={analysis.processedImageUrl}
-                          alt={analysis.detectedItem || "Analyzed item"}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-gray-100 flex items-center justify-center">
-                          <span className="text-gray-400 text-xs">No image</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Product Info */}
-                    <div className="min-w-0 flex-1 px-4">
-                      <div>
-                        <p className="text-sm font-medium text-primary-600 truncate">
-                          {analysis.suggestedTitle || analysis.detectedItem || "Unknown Item"}
-                        </p>
-                        <p className="mt-1 flex items-center text-sm text-gray-500">
-                          <span className="truncate">
-                            Condition: {analysis.suggestedCondition || "Unknown"} | {analysis.suggestedCategory || "Uncategorized"}
-                          </span>
-                        </p>
-                        <div className="mt-2 flex items-center text-sm">
-                          <div className="flex items-center text-sm space-x-4">
-                            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-                              AI Suggestion: ${analysis.suggestedPrice ? analysis.suggestedPrice.toFixed(2) : "0.00"}
-                            </Badge>
-                            <span className="text-gray-500 flex items-center">
-                              <Tag size={16} className="mr-1 text-gray-400" />
-                              Market Range: ${analysis.marketPriceRange?.min?.toFixed(2) || "0"} - ${analysis.marketPriceRange?.max?.toFixed(2) || "0"}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        {expandedItems[analysis.id] && (
-                          <div className="mt-3 text-sm text-gray-600 border-t border-gray-100 pt-3">
-                            <p className="mb-2"><strong>Description:</strong> {analysis.suggestedDescription}</p>
-                            <p><strong>Analysis Status:</strong> {analysis.status}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:space-x-3">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => toggleItemExpansion(analysis.id)}
-                    >
-                      {expandedItems[analysis.id] ? "Less Info" : "More Info"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => addToInventoryMutation.mutate(analysis.id)}
-                      disabled={addToInventoryMutation.isPending}
-                    >
-                      Add to Inventory
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center"
-                    >
-                      <Edit size={16} className="mr-1" />
-                      Edit Details
-                    </Button>
-                  </div>
+      <h3 className="text-lg font-medium">Image Analyses</h3>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {analyses.map((analysis) => (
+          <Card key={analysis.id} className="overflow-hidden">
+            <div className="aspect-video w-full relative overflow-hidden">
+              <img
+                src={analysis.imageUrl}
+                alt={analysis.suggestedTitle || 'Product image'}
+                className="h-full w-full object-cover transition-all hover:scale-105"
+              />
+              <div className="absolute top-2 right-2">
+                {renderStatus(analysis.status)}
+              </div>
+            </div>
+            <CardHeader className="p-4 pb-0">
+              <h4 className="font-medium text-lg line-clamp-1">
+                {analysis.suggestedTitle || 'Untitled Product'}
+              </h4>
+              <p className="text-muted-foreground font-mono text-sm">
+                ID: {analysis.id}
+              </p>
+            </CardHeader>
+            <CardContent className="p-4">
+              <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                {truncateText(analysis.suggestedDescription || 'No description available.', 100)}
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Category:</span>{' '}
+                  <span className="font-medium">
+                    {analysis.suggestedCategory || 'Unknown'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Condition:</span>{' '}
+                  <span className="font-medium">
+                    {analysis.suggestedCondition || 'Unknown'}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Price:</span>{' '}
+                  <span className="font-medium">
+                    {analysis.suggestedPrice
+                      ? formatCurrency(analysis.suggestedPrice)
+                      : 'Unknown'}
+                  </span>
                 </div>
               </div>
-            </li>
-          ))}
-        </ul>
+            </CardContent>
+            <Separator />
+            <CardFooter className="p-4 flex justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedAnalysis(analysis)}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Details
+              </Button>
+              {analysis.status === 'completed' && (
+                <Button
+                  onClick={() => handleAddToInventory(analysis.id)}
+                  size="sm"
+                  disabled={isAddingToInventory}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add to Inventory
+                </Button>
+              )}
+            </CardFooter>
+          </Card>
+        ))}
       </div>
+
+      {/* Analysis Details Dialog */}
+      {selectedAnalysis && (
+        <Dialog open={!!selectedAnalysis} onOpenChange={() => setSelectedAnalysis(null)}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Analysis Details</DialogTitle>
+              <DialogDescription>
+                Detailed information about the image analysis.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <img
+                  src={selectedAnalysis.imageUrl}
+                  alt={selectedAnalysis.suggestedTitle || 'Product'}
+                  className="w-full h-auto rounded-md"
+                />
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-lg">
+                    {selectedAnalysis.suggestedTitle || 'Untitled Product'}
+                  </h4>
+                  <p className="text-muted-foreground text-sm">
+                    Analysis ID: {selectedAnalysis.id}
+                  </p>
+                  <div className="mt-2">
+                    {renderStatus(selectedAnalysis.status)}
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <h5 className="font-medium">Product Details</h5>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Category:</span>{' '}
+                      <span className="font-medium">
+                        {selectedAnalysis.suggestedCategory || 'Unknown'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Subcategory:</span>{' '}
+                      <span className="font-medium">
+                        {selectedAnalysis.suggestedSubcategory || 'Unknown'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Condition:</span>{' '}
+                      <span className="font-medium">
+                        {selectedAnalysis.suggestedCondition || 'Unknown'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Price:</span>{' '}
+                      <span className="font-medium">
+                        {selectedAnalysis.suggestedPrice
+                          ? formatCurrency(selectedAnalysis.suggestedPrice)
+                          : 'Unknown'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h5 className="font-medium">Description</h5>
+                  <p className="text-sm mt-1">
+                    {selectedAnalysis.suggestedDescription || 'No description available.'}
+                  </p>
+                </div>
+
+                <div className="pt-4 flex justify-between">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      deleteAnalysis(selectedAnalysis.id);
+                      setSelectedAnalysis(null);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Analysis
+                  </Button>
+                  {selectedAnalysis.status === 'completed' && (
+                    <Button
+                      onClick={() => {
+                        handleAddToInventory(selectedAnalysis.id);
+                        setSelectedAnalysis(null);
+                      }}
+                      size="sm"
+                      disabled={isAddingToInventory}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add to Inventory
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

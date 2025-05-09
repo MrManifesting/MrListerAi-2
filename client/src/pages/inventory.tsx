@@ -44,6 +44,9 @@ export default function Inventory() {
           <p className="mt-1 text-sm text-gray-600">
             Manage and track your product inventory across all marketplaces
           </p>
+          <div className="mt-2">
+            <InventoryStatus />
+          </div>
         </div>
         <div className="mt-4 sm:mt-0 flex space-x-3">
           <Button

@@ -1,18 +1,34 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { DataTable } from "@/components/ui/data-table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useState } from 'react';
+import { useInventory, InventoryItem } from '@/hooks/use-inventory';
+import { useWebSocketContext } from '@/components/providers/websocket-provider';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { InventoryItem } from "@shared/schema";
-import { Edit, Eye, MoreHorizontal, Download, Share2 } from "lucide-react";
+} from '@/components/ui/dropdown-menu';
+import { Edit, MoreHorizontal, Trash2, Eye, QrCode, BarCode, ListFilter, ArrowUpDown } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface InventoryTableProps {
   items: InventoryItem[];
@@ -20,311 +36,267 @@ interface InventoryTableProps {
 }
 
 export function InventoryTable({ items, isLoading }: InventoryTableProps) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [exportLoading, setExportLoading] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const { deleteItem } = useInventory();
+  const { sendInventoryUpdate } = useWebSocketContext();
 
-  const handleExportCSV = async (marketplaceName: string) => {
-    try {
-      setExportLoading(true);
-      
-      // Get the inventory IDs to export
-      const inventoryIds = items.map(item => item.id);
-      
-      // Create a temporary link to download the CSV
-      const response = await apiRequest("POST", "/api/inventory/export-csv", {
-        marketplaceName,
-        inventoryIds,
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString();
+  };
+  
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(value);
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm('Are you sure you want to delete this item?')) {
+      deleteItem(id, {
+        onSuccess: () => {
+          // Notify other clients that the inventory has changed
+          sendInventoryUpdate({ action: 'delete', itemId: id });
+        },
       });
-      
-      // Convert the response to a blob
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${marketplaceName.toLowerCase()}-listings.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      
-      toast({
-        title: "CSV exported successfully",
-        description: `Your inventory has been exported for ${marketplaceName}.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Export failed",
-        description: "There was a problem exporting your inventory.",
-        variant: "destructive",
-      });
-    } finally {
-      setExportLoading(false);
     }
   };
 
-  // Define status badge styling based on status
-  const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "listed":
-        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Listed</Badge>;
-      case "draft":
-        return <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">Draft</Badge>;
-      case "sold":
-        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Sold</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
+  if (isLoading) {
+    return (
+      <Card className="p-4">
+        <Skeleton className="h-8 w-full mb-4" />
+        <Skeleton className="h-[400px] w-full" />
+      </Card>
+    );
+  }
 
-  // Table columns
-  const columns = [
-    {
-      accessorKey: "thumbnailUrl",
-      header: "Item",
-      cell: ({ row }) => {
-        const item = row.original;
-        return (
-          <div className="flex items-center">
-            <div className="h-10 w-10 flex-shrink-0 rounded overflow-hidden border border-gray-200">
-              {item.thumbnailUrl ? (
-                <img
-                  src={item.thumbnailUrl}
-                  alt={item.title}
-                  className="h-10 w-10 object-cover"
-                />
-              ) : (
-                <div className="h-10 w-10 bg-gray-100 flex items-center justify-center">
-                  <span className="text-gray-400 text-xs">No image</span>
-                </div>
-              )}
-            </div>
-            <div className="ml-4">
-              <div className="font-medium text-gray-900">{item.title}</div>
-              <div className="text-gray-500 truncate max-w-xs">
-                {item.description}
-              </div>
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "sku",
-      header: "SKU",
-      cell: ({ row }) => <div className="text-sm text-gray-500">{row.original.sku}</div>,
-    },
-    {
-      accessorKey: "category",
-      header: "Category",
-      cell: ({ row }) => (
-        <div className="text-sm text-gray-500">
-          {row.original.category}
-          {row.original.subcategory && <> &gt; {row.original.subcategory}</>}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "condition",
-      header: "Condition",
-      cell: ({ row }) => <div className="text-sm text-gray-500">{row.original.condition}</div>,
-    },
-    {
-      accessorKey: "price",
-      header: "Price",
-      cell: ({ row }) => (
-        <div className="text-sm font-medium text-gray-900">
-          ${row.original.price.toFixed(2)}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => getStatusBadge(row.original.status),
-    },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const item = row.original;
-        return (
-          <div className="flex justify-end space-x-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="flex items-center"
-                  onClick={() => {
-                    // Navigate to inventory edit page
-                    window.location.href = `/inventory/edit/${item.id}`;
-                  }}
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Item
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="flex items-center"
-                  onClick={() => {
-                    // Open a modal dialog with item details
-                    const imageUrl = item.thumbnailUrl || item.imageUrls?.[0];
-                    const modalHTML = `
-                      <div class="p-4">
-                        <div class="flex items-start">
-                          <div class="mr-4">
-                            <div class="h-32 w-32 overflow-hidden rounded border border-gray-200">
-                              ${imageUrl ? `<img src="${imageUrl}" alt="${item.title}" class="h-32 w-32 object-cover" />` : 
-                                '<div class="h-32 w-32 bg-gray-100 flex items-center justify-center"><span class="text-gray-400">No image</span></div>'}
-                            </div>
-                          </div>
-                          <div class="flex-1">
-                            <h3 class="text-lg font-medium">${item.title}</h3>
-                            <p class="text-sm text-gray-600 mb-2">SKU: ${item.sku}</p>
-                            <div class="grid grid-cols-2 gap-2 text-sm">
-                              <div><span class="font-medium">Price:</span> $${item.price.toFixed(2)}</div>
-                              <div><span class="font-medium">Status:</span> ${item.status}</div>
-                              <div><span class="font-medium">Category:</span> ${item.category}</div>
-                              <div><span class="font-medium">Condition:</span> ${item.condition}</div>
-                              <div><span class="font-medium">Quantity:</span> ${item.quantity}</div>
-                              <div><span class="font-medium">Cost:</span> $${item.cost?.toFixed(2) || '0.00'}</div>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="mt-4 border-t pt-4">
-                          <p class="text-sm font-medium mb-1">Description:</p>
-                          <p class="text-sm text-gray-700">${item.description}</p>
-                        </div>
-                        <div class="mt-4">
-                          <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm" onclick="document.getElementById('inventory-detail-modal').remove()">Close</button>
-                        </div>
-                      </div>
-                    `;
-                    
-                    // Create and show the modal
-                    const modal = document.createElement('div');
-                    modal.id = 'inventory-detail-modal';
-                    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-                    modal.innerHTML = `
-                      <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-                        ${modalHTML}
-                      </div>
-                    `;
-                    
-                    // Add click handler to close when clicking outside
-                    modal.addEventListener('click', (e) => {
-                      if (e.target === modal) {
-                        modal.remove();
-                      }
-                    });
-                    
-                    document.body.appendChild(modal);
-                  }}
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  View Details
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="flex items-center"
-                  onClick={() => {
-                    toast({
-                      title: "Feature coming soon",
-                      description: "Create listing functionality will be available soon.",
-                    });
-                  }}
-                >
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Create Listing
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        );
-      },
-    },
-  ];
-
-  // Filter options
-  const filterOptions = [
-    {
-      key: "category",
-      options: [
-        { label: "Electronics", value: "Electronics" },
-        { label: "Clothing", value: "Clothing" },
-        { label: "Collectibles", value: "Collectibles" },
-        { label: "Music", value: "Music" },
-        { label: "Jewelry", value: "Jewelry" },
-        { label: "Home & Garden", value: "Home & Garden" },
-      ],
-      placeholder: "All Categories",
-    },
-    {
-      key: "condition",
-      options: [
-        { label: "New", value: "New" },
-        { label: "Like New", value: "Like New" },
-        { label: "Very Good", value: "Very Good" },
-        { label: "Good", value: "Good" },
-        { label: "Acceptable", value: "Acceptable" },
-      ],
-      placeholder: "All Conditions",
-    },
-    {
-      key: "status",
-      options: [
-        { label: "Listed", value: "listed" },
-        { label: "Draft", value: "draft" },
-        { label: "Sold", value: "sold" },
-      ],
-      placeholder: "All Statuses",
-    },
-  ];
+  if (items.length === 0) {
+    return (
+      <Card className="p-6 text-center">
+        <h3 className="text-lg font-medium mb-2">No Inventory Items</h3>
+        <p className="text-muted-foreground mb-4">
+          Start by uploading images to analyze and add items to your inventory.
+        </p>
+      </Card>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="sm:flex sm:items-center justify-between">
-        <div>
-          <h2 className="text-lg font-medium text-gray-900">Inventory Management</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Track and manage your inventory across all connected marketplaces
-          </p>
-        </div>
-        <div className="mt-4 sm:mt-0 sm:flex-none flex space-x-3">
-          <Button className="flex items-center">
-            <Download className="mr-2 h-4 w-4" />
-            Import
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center" disabled={exportLoading}>
-                <Download className="mr-2 h-4 w-4" />
-                {exportLoading ? "Exporting..." : "Export"}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleExportCSV("eBay")}>
-                Export for eBay
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportCSV("Shopify")}>
-                Export for Shopify
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportCSV("Generic")}>
-                Generic CSV
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+    <div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px]">Image</TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Condition</TableHead>
+              <TableHead className="text-right">Price</TableHead>
+              <TableHead className="text-right">Quantity</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>
+                  {item.thumbnailUrl ? (
+                    <img
+                      src={item.thumbnailUrl}
+                      alt={item.title}
+                      className="h-12 w-12 rounded-md object-cover"
+                    />
+                  ) : (
+                    <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                      No image
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="font-mono text-xs">{item.sku}</TableCell>
+                <TableCell className="font-medium">{item.title}</TableCell>
+                <TableCell>{item.category}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">{item.condition}</Badge>
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
+                <TableCell className="text-right">{item.quantity}</TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Open menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => setSelectedItem(item)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        // Navigate to edit page or open edit modal
+                      }}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Item
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => {
+                        // Generate barcode function
+                      }}>
+                        <BarCode className="mr-2 h-4 w-4" />
+                        Print Barcode
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        // Generate QR code function
+                      }}>
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Print QR Code
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => handleDelete(item.id)}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Item
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={items}
-        searchKey="title"
-        filterOptions={filterOptions}
-        searchPlaceholder="Search inventory"
-      />
+      {/* Item Details Dialog */}
+      {selectedItem && (
+        <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Item Details</DialogTitle>
+              <DialogDescription>
+                Detailed information about the inventory item.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <img
+                  src={selectedItem.imageUrl || '/placeholder-image.jpg'}
+                  alt={selectedItem.title}
+                  className="w-full h-auto rounded-md"
+                />
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="p-2 border rounded-md text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Barcode</p>
+                    {selectedItem.barcode ? (
+                      <img
+                        src={selectedItem.barcode}
+                        alt="Barcode"
+                        className="h-16 w-full object-contain"
+                      />
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No barcode</p>
+                    )}
+                  </div>
+                  <div className="p-2 border rounded-md text-center">
+                    <p className="text-xs text-muted-foreground mb-1">QR Code</p>
+                    {selectedItem.qrCode ? (
+                      <img
+                        src={selectedItem.qrCode}
+                        alt="QR Code"
+                        className="h-16 w-full object-contain"
+                      />
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No QR code</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-xl font-medium">{selectedItem.title}</h3>
+                  <p className="text-muted-foreground font-mono text-xs">
+                    SKU: {selectedItem.sku}
+                  </p>
+                  <div className="mt-2 flex items-center space-x-2">
+                    <Badge>{selectedItem.condition}</Badge>
+                    <Badge variant="outline">{selectedItem.category}</Badge>
+                    {selectedItem.subcategory && (
+                      <Badge variant="outline">{selectedItem.subcategory}</Badge>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Price</p>
+                    <p className="font-medium text-lg">{formatCurrency(selectedItem.price)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Quantity</p>
+                    <p className="font-medium text-lg">{selectedItem.quantity}</p>
+                  </div>
+                  {selectedItem.cost !== null && (
+                    <div>
+                      <p className="text-muted-foreground">Cost</p>
+                      <p className="font-medium">{formatCurrency(selectedItem.cost)}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-muted-foreground">Status</p>
+                    <p className="font-medium">
+                      <Badge variant={selectedItem.status === 'active' ? 'default' : 'secondary'}>
+                        {selectedItem.status}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Created</p>
+                    <p className="font-medium">{formatDate(selectedItem.createdAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Updated</p>
+                    <p className="font-medium">{formatDate(selectedItem.updatedAt)}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-muted-foreground">Description</p>
+                  <p className="text-sm mt-1">{selectedItem.description}</p>
+                </div>
+
+                <div className="pt-4 flex justify-between">
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      handleDelete(selectedItem.id);
+                      setSelectedItem(null);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Item
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => {
+                      // Navigate to edit page or open edit modal
+                      setSelectedItem(null);
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Item
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
