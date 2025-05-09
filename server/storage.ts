@@ -20,6 +20,24 @@ import {
 } from "@shared/schema";
 
 // Storage interface with all CRUD methods needed for the application
+// Employee Checkin interface
+export interface EmployeeCheckin {
+  id: number;
+  userId: number;
+  locationId: string;
+  timestamp: Date;
+  location: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface InsertEmployeeCheckin {
+  userId: number;
+  locationId: string;
+  timestamp: Date;
+  location: string;
+}
+
 export interface IStorage {
   // User Management
   getUser(id: number): Promise<User | undefined>;
@@ -29,6 +47,11 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<User>): Promise<User | undefined>;
   deleteUser(id: number): Promise<boolean>;
+  
+  // Employee Management
+  createEmployeeCheckin(checkin: InsertEmployeeCheckin): Promise<EmployeeCheckin>;
+  getEmployeeCheckins(userId: number): Promise<EmployeeCheckin[]>;
+  getEmployeeCheckinsByLocation(locationId: string): Promise<EmployeeCheckin[]>;
 
   // Inventory Management
   getInventoryItem(id: number): Promise<InventoryItem | undefined>;
@@ -101,6 +124,7 @@ export class MemStorage implements IStorage {
   private imageAnalyses: Map<number, ImageAnalysis>;
   private subscriptions: Map<number, Subscription>;
   private analyticsData: Map<number, Analytics>;
+  private employeeCheckins: Map<number, EmployeeCheckin>;
   
   private userId: number;
   private itemId: number;
@@ -111,6 +135,7 @@ export class MemStorage implements IStorage {
   private analysisId: number;
   private subscriptionId: number;
   private analyticsId: number;
+  private checkinId: number;
 
   constructor() {
     this.users = new Map();
@@ -122,6 +147,7 @@ export class MemStorage implements IStorage {
     this.imageAnalyses = new Map();
     this.subscriptions = new Map();
     this.analyticsData = new Map();
+    this.employeeCheckins = new Map();
     
     this.userId = 1;
     this.itemId = 1;
@@ -132,6 +158,7 @@ export class MemStorage implements IStorage {
     this.analysisId = 1;
     this.subscriptionId = 1;
     this.analyticsId = 1;
+    this.checkinId = 1;
     
     // Add demo data
     this.initializeDemoData();
@@ -362,6 +389,29 @@ export class MemStorage implements IStorage {
     return Array.from(this.inventoryItems.values()).filter(
       (item) => item.storeId === storeId
     );
+  }
+  
+  async getInventoryItemByBarcode(userId: number, barcode: string): Promise<InventoryItem | undefined> {
+    // Find items by user
+    const userItems = await this.getInventoryItemsByUser(userId);
+    
+    // Look for items where the barcode matches in metadata
+    // In a real implementation, this would be a proper database query
+    return userItems.find(item => {
+      // Check if there's a metadata object with barcode information
+      if (item.metadata) {
+        const metadata = item.metadata as any;
+        // Check if the barcode matches
+        return metadata.barcode === barcode || 
+               // Also check if it's stored in a barcodes array
+               (Array.isArray(metadata.barcodes) && metadata.barcodes.includes(barcode)) ||
+               // Or if it matches the SKU (which could function as a barcode)
+               item.sku === barcode;
+      }
+      
+      // If no metadata, check if the SKU matches the barcode
+      return item.sku === barcode;
+    });
   }
 
   async createInventoryItem(itemData: InsertInventoryItem): Promise<InventoryItem> {
@@ -687,6 +737,32 @@ export class MemStorage implements IStorage {
     };
     this.analyticsData.set(id, updatedAnalytics);
     return updatedAnalytics;
+  }
+  
+  // Employee Check-in Methods
+  async createEmployeeCheckin(checkinData: InsertEmployeeCheckin): Promise<EmployeeCheckin> {
+    const id = this.checkinId++;
+    const now = new Date();
+    const checkin: EmployeeCheckin = {
+      ...checkinData,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.employeeCheckins.set(id, checkin);
+    return checkin;
+  }
+  
+  async getEmployeeCheckins(userId: number): Promise<EmployeeCheckin[]> {
+    return Array.from(this.employeeCheckins.values()).filter(
+      (checkin) => checkin.userId === userId
+    );
+  }
+  
+  async getEmployeeCheckinsByLocation(locationId: string): Promise<EmployeeCheckin[]> {
+    return Array.from(this.employeeCheckins.values()).filter(
+      (checkin) => checkin.locationId === locationId
+    );
   }
 }
 
