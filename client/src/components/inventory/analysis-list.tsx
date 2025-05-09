@@ -174,7 +174,7 @@ export function AnalysisList({ analyses, onItemAdded }: AnalysisListProps) {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <img
-                  src={selectedAnalysis.imageUrl}
+                  src={selectedAnalysis.originalImageUrl}
                   alt={selectedAnalysis.suggestedTitle || 'Product'}
                   className="w-full h-auto rounded-md"
                 />
@@ -204,9 +204,9 @@ export function AnalysisList({ analyses, onItemAdded }: AnalysisListProps) {
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Subcategory:</span>{' '}
+                      <span className="text-muted-foreground">Item Type:</span>{' '}
                       <span className="font-medium">
-                        {selectedAnalysis.suggestedSubcategory || 'Unknown'}
+                        {selectedAnalysis.detectedItem || 'Unknown'}
                       </span>
                     </div>
                     <div>
@@ -240,7 +240,7 @@ export function AnalysisList({ analyses, onItemAdded }: AnalysisListProps) {
                     variant="destructive"
                     size="sm"
                     onClick={() => {
-                      deleteAnalysis(selectedAnalysis.id);
+                      deleteAnalysis.mutate(selectedAnalysis.id);
                       setSelectedAnalysis(null);
                     }}
                   >
