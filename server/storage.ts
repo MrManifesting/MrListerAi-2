@@ -113,55 +113,24 @@ export interface IStorage {
   updateAnalytics(id: number, analyticsData: Partial<Analytics>): Promise<Analytics | undefined>;
 }
 
-// In-Memory Storage Implementation
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private inventoryItems: Map<number, InventoryItem>;
-  private marketplaces: Map<number, Marketplace>;
-  private stores: Map<number, Store>;
-  private sales: Map<number, Sale>;
-  private donations: Map<number, Donation>;
-  private imageAnalyses: Map<number, ImageAnalysis>;
-  private subscriptions: Map<number, Subscription>;
-  private analyticsData: Map<number, Analytics>;
-  private employeeCheckins: Map<number, EmployeeCheckin>;
-  
-  private userId: number;
-  private itemId: number;
-  private marketplaceId: number;
-  private storeId: number;
-  private saleId: number;
-  private donationId: number;
-  private analysisId: number;
-  private subscriptionId: number;
-  private analyticsId: number;
-  private checkinId: number;
+import { eq, and, desc, sql } from "drizzle-orm";
+import { db } from "./db";
+import connectPgSimple from "connect-pg-simple";
+import session from "express-session";
+import { pool } from "./db";
+
+// Database Storage Implementation
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
 
   constructor() {
-    this.users = new Map();
-    this.inventoryItems = new Map();
-    this.marketplaces = new Map();
-    this.stores = new Map();
-    this.sales = new Map();
-    this.donations = new Map();
-    this.imageAnalyses = new Map();
-    this.subscriptions = new Map();
-    this.analyticsData = new Map();
-    this.employeeCheckins = new Map();
-    
-    this.userId = 1;
-    this.itemId = 1;
-    this.marketplaceId = 1;
-    this.storeId = 1;
-    this.saleId = 1;
-    this.donationId = 1;
-    this.analysisId = 1;
-    this.subscriptionId = 1;
-    this.analyticsId = 1;
-    this.checkinId = 1;
-    
-    // Add demo data
-    this.initializeDemoData();
+    // Initialize session store with PostgreSQL
+    const PostgresStore = connectPgSimple(session);
+    this.sessionStore = new PostgresStore({
+      pool,
+      tableName: 'session', // Optional. Default is "session"
+      createTableIfMissing: true
+    });
   }
 
   // Helper for demo initialization
@@ -318,130 +287,226 @@ export class MemStorage implements IStorage {
 
   // User Methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    try {
+      const [user] = await db.select().from(users).where(eq(users.id, id));
+      return user;
+    } catch (error) {
+      console.error("Error getting user:", error);
+      return undefined;
+    }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username.toLowerCase() === username.toLowerCase()
-    );
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username));
+      return user;
+    } catch (error) {
+      console.error("Error getting user by username:", error);
+      return undefined;
+    }
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email.toLowerCase() === email.toLowerCase()
-    );
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email));
+      return user;
+    } catch (error) {
+      console.error("Error getting user by email:", error);
+      return undefined;
+    }
   }
   
   async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
+    try {
+      return await db.select().from(users);
+    } catch (error) {
+      console.error("Error getting all users:", error);
+      return [];
+    }
   }
 
   async createUser(userData: InsertUser): Promise<User> {
-    const id = this.userId++;
-    const now = new Date();
-    const user: User = {
-      ...userData,
-      id,
-      createdAt: now,
-      updatedAt: now,
-      subscriptionValidUntil: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-    };
-    this.users.set(id, user);
-    return user;
+    try {
+      // Set default expiration date for subscription (30 days from now)
+      const subscriptionValidUntil = new Date();
+      subscriptionValidUntil.setDate(subscriptionValidUntil.getDate() + 30);
+      
+      const [user] = await db
+        .insert(users)
+        .values({
+          ...userData,
+          role: userData.role || "seller",
+          subscription: userData.subscription || "basic",
+          subscriptionValidUntil
+        })
+        .returning();
+      return user;
+    } catch (error) {
+      console.error("Error creating user:", error);
+      throw new Error("Failed to create user");
+    }
   }
 
   async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser = {
-      ...user,
-      ...userData,
-      updatedAt: new Date(),
-    };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    try {
+      const [user] = await db
+        .update(users)
+        .set({
+          ...userData,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, id))
+        .returning();
+      return user;
+    } catch (error) {
+      console.error("Error updating user:", error);
+      return undefined;
+    }
   }
 
   async deleteUser(id: number): Promise<boolean> {
-    return this.users.delete(id);
+    try {
+      const result = await db
+        .delete(users)
+        .where(eq(users.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      return false;
+    }
   }
 
   // Inventory Methods
   async getInventoryItem(id: number): Promise<InventoryItem | undefined> {
-    return this.inventoryItems.get(id);
+    try {
+      const [item] = await db
+        .select()
+        .from(inventoryItems)
+        .where(eq(inventoryItems.id, id));
+      return item;
+    } catch (error) {
+      console.error("Error getting inventory item:", error);
+      return undefined;
+    }
   }
 
   async getInventoryItemBySku(sku: string): Promise<InventoryItem | undefined> {
-    return Array.from(this.inventoryItems.values()).find(
-      (item) => item.sku === sku
-    );
+    try {
+      const [item] = await db
+        .select()
+        .from(inventoryItems)
+        .where(eq(inventoryItems.sku, sku));
+      return item;
+    } catch (error) {
+      console.error("Error getting inventory item by SKU:", error);
+      return undefined;
+    }
   }
 
   async getInventoryItemsByUser(userId: number): Promise<InventoryItem[]> {
-    return Array.from(this.inventoryItems.values()).filter(
-      (item) => item.userId === userId
-    );
+    try {
+      return await db
+        .select()
+        .from(inventoryItems)
+        .where(eq(inventoryItems.userId, userId));
+    } catch (error) {
+      console.error("Error getting inventory items by user:", error);
+      return [];
+    }
   }
 
   async getInventoryItemsByStore(storeId: number): Promise<InventoryItem[]> {
-    return Array.from(this.inventoryItems.values()).filter(
-      (item) => item.storeId === storeId
-    );
+    try {
+      return await db
+        .select()
+        .from(inventoryItems)
+        .where(eq(inventoryItems.storeId, storeId));
+    } catch (error) {
+      console.error("Error getting inventory items by store:", error);
+      return [];
+    }
   }
   
   async getInventoryItemByBarcode(userId: number, barcode: string): Promise<InventoryItem | undefined> {
-    // Find items by user
-    const userItems = await this.getInventoryItemsByUser(userId);
-    
-    // Look for items where the barcode matches in metadata
-    // In a real implementation, this would be a proper database query
-    return userItems.find(item => {
-      // Check if there's a metadata object with barcode information
-      if (item.metadata) {
-        const metadata = item.metadata as any;
-        // Check if the barcode matches
-        return metadata.barcode === barcode || 
-               // Also check if it's stored in a barcodes array
-               (Array.isArray(metadata.barcodes) && metadata.barcodes.includes(barcode)) ||
-               // Or if it matches the SKU (which could function as a barcode)
-               item.sku === barcode;
-      }
+    try {
+      // First try to find an item with matching SKU
+      const [itemBySku] = await db
+        .select()
+        .from(inventoryItems)
+        .where(and(
+          eq(inventoryItems.userId, userId),
+          eq(inventoryItems.sku, barcode)
+        ));
       
-      // If no metadata, check if the SKU matches the barcode
-      return item.sku === barcode;
-    });
+      if (itemBySku) return itemBySku;
+      
+      // Get all user items to search in metadata for barcode
+      const userItems = await this.getInventoryItemsByUser(userId);
+      
+      // Look for items where the barcode matches in metadata
+      return userItems.find(item => {
+        if (item.metadata) {
+          const metadata = item.metadata as any;
+          return metadata.barcode === barcode || 
+                 (Array.isArray(metadata.barcodes) && metadata.barcodes.includes(barcode));
+        }
+        return false;
+      });
+    } catch (error) {
+      console.error("Error getting inventory item by barcode:", error);
+      return undefined;
+    }
   }
 
   async createInventoryItem(itemData: InsertInventoryItem): Promise<InventoryItem> {
-    const id = this.itemId++;
-    const now = new Date();
-    const item: InventoryItem = {
-      ...itemData,
-      id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.inventoryItems.set(id, item);
-    return item;
+    try {
+      const [item] = await db
+        .insert(inventoryItems)
+        .values({
+          ...itemData,
+          status: itemData.status || "draft"
+        })
+        .returning();
+      return item;
+    } catch (error) {
+      console.error("Error creating inventory item:", error);
+      throw new Error("Failed to create inventory item");
+    }
   }
 
   async updateInventoryItem(id: number, itemData: Partial<InventoryItem>): Promise<InventoryItem | undefined> {
-    const item = this.inventoryItems.get(id);
-    if (!item) return undefined;
-    
-    const updatedItem = {
-      ...item,
-      ...itemData,
-      updatedAt: new Date(),
-    };
-    this.inventoryItems.set(id, updatedItem);
-    return updatedItem;
+    try {
+      const [updatedItem] = await db
+        .update(inventoryItems)
+        .set({
+          ...itemData,
+          updatedAt: new Date()
+        })
+        .where(eq(inventoryItems.id, id))
+        .returning();
+      return updatedItem;
+    } catch (error) {
+      console.error("Error updating inventory item:", error);
+      return undefined;
+    }
   }
 
   async deleteInventoryItem(id: number): Promise<boolean> {
-    return this.inventoryItems.delete(id);
+    try {
+      await db
+        .delete(inventoryItems)
+        .where(eq(inventoryItems.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting inventory item:", error);
+      return false;
+    }
   }
 
   // Marketplace Methods
@@ -623,43 +688,74 @@ export class MemStorage implements IStorage {
 
   // Image Analysis Methods
   async getImageAnalysis(id: number): Promise<ImageAnalysis | undefined> {
-    return this.imageAnalyses.get(id);
+    try {
+      const [analysis] = await db
+        .select()
+        .from(imageAnalysis)
+        .where(eq(imageAnalysis.id, id));
+      return analysis;
+    } catch (error) {
+      console.error("Error getting image analysis:", error);
+      return undefined;
+    }
   }
 
   async getImageAnalysesByUser(userId: number): Promise<ImageAnalysis[]> {
-    return Array.from(this.imageAnalyses.values()).filter(
-      (analysis) => analysis.userId === userId
-    );
+    try {
+      return await db
+        .select()
+        .from(imageAnalysis)
+        .where(eq(imageAnalysis.userId, userId))
+        .orderBy(desc(imageAnalysis.createdAt));
+    } catch (error) {
+      console.error("Error getting image analyses by user:", error);
+      return [];
+    }
   }
 
   async createImageAnalysis(analysisData: InsertImageAnalysis): Promise<ImageAnalysis> {
-    const id = this.analysisId++;
-    const now = new Date();
-    const analysis: ImageAnalysis = {
-      ...analysisData,
-      id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.imageAnalyses.set(id, analysis);
-    return analysis;
+    try {
+      const [analysis] = await db
+        .insert(imageAnalysis)
+        .values({
+          ...analysisData,
+          status: analysisData.status || "pending"
+        })
+        .returning();
+      return analysis;
+    } catch (error) {
+      console.error("Error creating image analysis:", error);
+      throw new Error("Failed to create image analysis");
+    }
   }
 
   async updateImageAnalysis(id: number, analysisData: Partial<ImageAnalysis>): Promise<ImageAnalysis | undefined> {
-    const analysis = this.imageAnalyses.get(id);
-    if (!analysis) return undefined;
-    
-    const updatedAnalysis = {
-      ...analysis,
-      ...analysisData,
-      updatedAt: new Date(),
-    };
-    this.imageAnalyses.set(id, updatedAnalysis);
-    return updatedAnalysis;
+    try {
+      const [updatedAnalysis] = await db
+        .update(imageAnalysis)
+        .set({
+          ...analysisData,
+          updatedAt: new Date()
+        })
+        .where(eq(imageAnalysis.id, id))
+        .returning();
+      return updatedAnalysis;
+    } catch (error) {
+      console.error("Error updating image analysis:", error);
+      return undefined;
+    }
   }
 
   async deleteImageAnalysis(id: number): Promise<boolean> {
-    return this.imageAnalyses.delete(id);
+    try {
+      await db
+        .delete(imageAnalysis)
+        .where(eq(imageAnalysis.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting image analysis:", error);
+      return false;
+    }
   }
 
   // Subscription Methods
@@ -766,4 +862,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
