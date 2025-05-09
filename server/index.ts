@@ -1,11 +1,15 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import path from "path";
 
 const app = express();
 // Increase JSON body size limit to 10MB for image uploads
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+
+// Serve static files from the temp directory
+app.use('/temp', express.static(path.join(process.cwd(), 'temp')));
 
 app.use((req, res, next) => {
   const start = Date.now();
