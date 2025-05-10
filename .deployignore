@@ -1,0 +1,13 @@
+# Deployment ignore file
+node_modules/.cache/
+.git/
+.config/
+temp/
+/tmp/
+*.log
+*.test.ts
+*.test.js
+__tests__/
+coverage/
+.vscode/
+.idea/
