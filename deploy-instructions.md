@@ -1,48 +1,54 @@
 # MrLister Deployment Instructions
 
 ## Overview
-This document provides instructions for deploying the MrLister application through Replit Deployments.
+This document provides instructions for deploying MrLister through Replit Deployments.
 
 ## Deployment Files
-The application includes a simplified server script for deployment:
-- `server.js` - Main server file with Express and WebSocket support
+The application has been simplified to two server options:
+- `server.js` - ES Module version (default)
+- `server.cjs` - CommonJS version (backup option)
+
+Choose whichever server file works best with your deployment environment.
 
 ## Deployment Process
-1. Make sure all dependencies are properly installed:
-   - Express for the HTTP server
-   - WS for WebSocket support
-   - CORS for cross-origin requests
-   
-2. The application has the following environment variables:
-   - `PORT` - The port to run the server on (defaults to 5000)
+1. Required environment variables:
    - `DATABASE_URL` - PostgreSQL database connection string
    - `OPENAI_API_KEY` - For AI functionality
    - `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` - For payment processing
 
-3. To deploy with Replit Deployments:
+2. To deploy with Replit:
    - Click the "Deploy" button in Replit
-   - The platform will handle the building and deployment automatically
-   - A .replit.app domain will be assigned to your application
+   - The platform will handle the build and deployment process
+   - Your app will be available at a .replit.app domain
 
-4. To test the deployment:
-   - Visit the health endpoint at `/api/health` to verify the server is running
-   - Test the WebSocket connection through the browser console with:
+3. If you need to manually start the server:
+   ```
+   # For ES Module version (default)
+   node server.js
+   
+   # For CommonJS version (if ESM version has issues)
+   node server.cjs
+   ```
+
+4. Testing the deployment:
+   - Visit `/api/health` to verify the server is running
+   - Test WebSocket connection (browser console):
    ```javascript
    const ws = new WebSocket('wss://your-app.replit.app/ws');
    ws.onmessage = (event) => console.log('Received:', event.data);
    ws.send('Test message');
    ```
 
-5. Once deployed, the full functionality of MrLister should be available, including:
-   - Inventory management
-   - Image analysis
-   - Marketplace integration
-   - Mobile barcode scanning capabilities
+## Features Available After Deployment
+- Inventory management with AI-powered analysis
+- Marketplace integration (Shopify, eBay, Etsy, Amazon, etc.)
+- Mobile barcode scanning
+- PDF generation for labels and packing slips
+- PayPal payment processing
 
 ## Troubleshooting
-If you encounter any issues during deployment:
-1. Check the environment variables are properly set
-2. Verify that all required dependencies are installed
-3. Check the server logs for any error messages
-
-For additional assistance, please refer to the Replit Deployments documentation.
+If you encounter issues during deployment:
+1. Check that all environment variables are set
+2. Verify database connection
+3. Try the alternate server file if one fails
+4. Check server logs for error messages
