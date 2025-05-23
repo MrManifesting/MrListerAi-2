@@ -17,12 +17,14 @@ import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
 import { ProtectedRoute } from "@/lib/protected-route";
+import NewProduct from "@/pages/new-product";
 
 function Router() {
   return (
     <Switch>
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute path="/inventory" component={Inventory} />
+      <ProtectedRoute path="/products/new" component={NewProduct} />
       <ProtectedRoute path="/marketplaces" component={Marketplaces} />
       <ProtectedRoute path="/analytics" component={Analytics} />
       <ProtectedRoute path="/stores" component={Stores} />
