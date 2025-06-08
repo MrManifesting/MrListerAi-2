@@ -351,6 +351,25 @@ export async function runAssistantOnThread(
 }
 
 /**
+ * Run multiple assistants sequentially on the same thread
+ */
+export async function runAssistantTeam(
+  threadId: string,
+  steps: { assistantName: string; instructions?: string }[]
+) {
+  const responses = [] as any[];
+  for (const step of steps) {
+    const resp = await runAssistantOnThread(
+      step.assistantName,
+      threadId,
+      step.instructions
+    );
+    responses.push(resp);
+  }
+  return responses;
+}
+
+/**
  * Get all messages from a thread
  */
 export async function getThreadMessages(threadId: string) {
