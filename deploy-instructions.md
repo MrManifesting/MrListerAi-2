@@ -52,3 +52,19 @@ If you encounter issues during deployment:
 2. Verify database connection
 3. Try the alternate server file if one fails
 4. Check server logs for error messages
+
+## Handoffs
+When you pass deployment responsibilities to another team member, share the current
+environment variable values and note any manual steps that still need attention.
+Document the deployment method used (Replit Deploy or manual `node` commands) and
+list any recent database migrations or outstanding issues.
+
+## Tool Usage
+Several helper scripts are included to streamline common tasks:
+
+- **Database migrations** – run `node scripts/migrate-db.js` to generate and push
+  schema changes using Drizzle.
+- **Cleanup** – run `npm run cleanup` to remove caches and temporary files before
+  deploying.
+- **Build and start** – use `npm run build` to create the production bundle and
+  `npm run start` to launch the server.
