@@ -16,12 +16,14 @@ Choose whichever server file works best with your deployment environment.
    - `OPENAI_API_KEY` - For AI functionality
    - `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` - For payment processing
 
-2. To deploy with Replit:
+2. Install dependencies by running `npm install` in your deployment environment.
+
+3. To deploy with Replit:
    - Click the "Deploy" button in Replit
    - The platform will handle the build and deployment process
    - Your app will be available at a .replit.app domain
 
-3. If you need to manually start the server:
+4. If you need to manually start the server:
    ```
    # For ES Module version (default)
    node server.js
@@ -30,7 +32,7 @@ Choose whichever server file works best with your deployment environment.
    node server.cjs
    ```
 
-4. Testing the deployment:
+5. Testing the deployment:
    - Visit `/api/health` to verify the server is running
    - Test WebSocket connection (browser console):
    ```javascript
