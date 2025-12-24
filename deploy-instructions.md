@@ -16,12 +16,14 @@ Choose whichever server file works best with your deployment environment.
    - `OPENAI_API_KEY` - For AI functionality
    - `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` - For payment processing
 
-2. To deploy with Replit:
+1. Install dependencies by running `npm install` in your deployment environment.
+
+1. To deploy with Replit:
    - Click the "Deploy" button in Replit
    - The platform will handle the build and deployment process
    - Your app will be available at a .replit.app domain
 
-3. If you need to manually start the server:
+1. If you need to manually start the server:
    ```
    # For ES Module version (default)
    node server.js
@@ -30,7 +32,7 @@ Choose whichever server file works best with your deployment environment.
    node server.cjs
    ```
 
-4. Testing the deployment:
+1. Testing the deployment:
    - Visit `/api/health` to verify the server is running
    - Test WebSocket connection (browser console):
    ```javascript
@@ -49,6 +51,24 @@ Choose whichever server file works best with your deployment environment.
 ## Troubleshooting
 If you encounter issues during deployment:
 1. Check that all environment variables are set
-2. Verify database connection
-3. Try the alternate server file if one fails
-4. Check server logs for error messages
+1. Verify database connection
+1. Try the alternate server file if one fails
+1. Check server logs for error messages
+
+## Handoffs
+When you pass deployment responsibilities to another team member, provide:
+- Current environment variable values
+- Any manual steps that still need attention
+- The deployment method used (Replit Deploy or manual `node` commands)
+- Recent database migrations
+- Outstanding issues or next steps
+
+## Tool Usage
+Several helper scripts are included to streamline common tasks:
+
+- **Database migrations** – run `node scripts/migrate-db.js` to generate SQL and
+  `npm run db:push` to apply schema changes using Drizzle.
+- **Cleanup** – run `npm run cleanup` to remove caches and temporary files before
+  deploying.
+- **Build and start** – use `npm run build` to create the production bundle and
+  `npm run start` to launch the server.
