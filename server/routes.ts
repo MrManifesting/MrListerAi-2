@@ -39,6 +39,7 @@ import {
   addMessageToThread,
   getThreadMessages,
   runAssistantOnThread,
+  runAssistantTeam,
   generateOptimizedListing,
   analyzePricingWithAssistant,
   identifyProductWithAssistant,
@@ -1197,6 +1198,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error running assistant:", error);
       res.status(500).json({ 
         message: "Error running assistant on thread",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.post("/api/assistants/team-run", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      let { threadId, steps } = req.body;
+
+      if (!Array.isArray(steps) || steps.length === 0) {
+        return res.status(400).json({ message: "Steps are required" });
+      }
+
+      if (!threadId) {
+        const thread = await createThread(user.id);
+        threadId = thread.id;
+      }
+
+      const responses = await runAssistantTeam(threadId, steps);
+      res.json({ threadId, responses });
+    } catch (error) {
+      console.error("Error running assistant team:", error);
+      res.status(500).json({
+        message: "Error running assistant team",
         error: error instanceof Error ? error.message : String(error)
       });
     }
