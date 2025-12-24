@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useInventory } from "@/hooks/use-inventory";
 import { useImageAnalysis } from "@/hooks/use-image-analysis";
 import { ImageUpload } from "@/components/inventory/image-upload";
@@ -59,6 +60,12 @@ export default function Inventory() {
             <Plus className="mr-2 h-4 w-4" />
             Add Items
           </Button>
+          <Link href="/products/new">
+            <Button variant="secondary" className="flex items-center">
+              <Plus className="mr-2 h-4 w-4" />
+              New Product
+            </Button>
+          </Link>
         </div>
       </div>
 
