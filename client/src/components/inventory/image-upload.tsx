@@ -132,6 +132,15 @@ export function ImageUpload({
               alt="Preview" 
               className="w-full h-auto max-h-[300px] object-contain bg-black/5 cursor-pointer"
               onClick={() => setShowPreviewDialog(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ' || e.code === 'Space') {
+                  e.preventDefault();
+                  setShowPreviewDialog(true);
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label="Open full size image preview"
             />
 
             <div className="absolute top-3 right-3 flex gap-2 z-20">
@@ -143,6 +152,7 @@ export function ImageUpload({
                   e.stopPropagation();
                   setShowPreviewDialog(true);
                 }}
+                aria-label="Open full size preview"
               >
                 <Maximize2 className="h-4 w-4" />
               </Button>
