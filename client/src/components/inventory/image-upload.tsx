@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ImagePlus, Upload, X, CheckCircle2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ImagePlus, Upload, X, CheckCircle2, Maximize2 } from 'lucide-react';
 
 interface ImageUploadProps {
   onUpload: (file: File) => void;
@@ -20,6 +21,7 @@ export function ImageUpload({
   const [dragActive, setDragActive] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
 
   const handleFileChange = (file: File | null) => {
     if (!file) return;
@@ -88,6 +90,7 @@ export function ImageUpload({
 
   const clearPreview = () => {
     setPreview(null);
+    setShowPreviewDialog(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -127,10 +130,32 @@ export function ImageUpload({
             <img 
               src={preview} 
               alt="Preview" 
-              className="w-full h-auto max-h-[300px] object-contain bg-black/5"
+              className="w-full h-auto max-h-[300px] object-contain bg-black/5 cursor-pointer"
+              onClick={() => setShowPreviewDialog(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ' || e.code === 'Space') {
+                  e.preventDefault();
+                  setShowPreviewDialog(true);
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label="Open full size image preview"
             />
 
             <div className="absolute top-3 right-3 flex gap-2 z-20">
+              <Button
+                variant="secondary"
+                size="icon-sm"
+                className="rounded-full shadow-lg bg-white/80 backdrop-blur-sm hover:bg-white/90"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPreviewDialog(true);
+                }}
+                aria-label="Open full size preview"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
               <Button
                 variant="secondary"
                 size="icon-sm"
@@ -175,6 +200,24 @@ export function ImageUpload({
           accept={acceptedFormats.join(',')}
         />
       </CardContent>
+
+      {/* Full Screen Preview Dialog */}
+      <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle>Image Preview</DialogTitle>
+          </DialogHeader>
+          <div className="p-4 overflow-auto flex items-center justify-center">
+            {preview && (
+              <img 
+                src={preview} 
+                alt="Full size preview" 
+                className="max-w-full max-h-[80vh] object-contain"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
